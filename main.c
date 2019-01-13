@@ -4,6 +4,7 @@
 #include "udc.h"
 #include "udi_cdc.h"
 #include "commands.h"
+#include "lcd.h"
 
 /** Set default LED blink period to 250ms*3 */
 #define DEFAULT_LED_FREQ   4
@@ -125,6 +126,7 @@ static void init_system(void)
     configure_console();
 
     btn_init();
+    lcd_init();
 
     ioc_init();
     ioc_set_clock(F1MHZ);

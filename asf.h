@@ -68,6 +68,8 @@
 // From module: TC - Timer Counter
 #include <tc.h>
 
+#include <twi.h>
+
 // From module: UART - Univ. Async Rec/Trans
 #include <uart.h>
 

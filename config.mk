@@ -57,6 +57,7 @@ CSRCS = \
        commands.c \
        io_capture.c \
        usb_handlers.c \
+       lcd.c \
        common/services/clock/sam4s/sysclk.c               \
        common/services/usb/class/cdc/device/udi_cdc.c     \
        common/services/usb/class/cdc/device/udi_cdc_desc.c \
@@ -67,6 +68,7 @@ CSRCS = \
        sam/drivers/pmc/pmc.c                              \
        sam/drivers/pmc/sleep.c                            \
        sam/drivers/tc/tc.c                                \
+       sam/drivers/twi/twi.c                              \
        sam/drivers/uart/uart.c                            \
        sam/drivers/udp/udp_device.c                       \
        sam/drivers/wdt/wdt.c                              \
@@ -92,6 +94,7 @@ INC_PATH = \
        sam/drivers/pio                                    \
        sam/drivers/pmc                                    \
        sam/drivers/tc                                     \
+       sam/drivers/twi                                    \
        sam/drivers/uart                                   \
        sam/drivers/udp                                    \
        sam/drivers/wdt                                    \

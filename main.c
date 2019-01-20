@@ -1,5 +1,6 @@
 #include "asf.h"
 #include "buttons.h"
+#include "io_capture.h"
 
 /** Set default LED blink period to 250ms*3 */
 #define DEFAULT_LED_FREQ   4
@@ -117,6 +118,20 @@ static void init_system(void)
     configure_console();
 
     btn_init();
+
+    ioc_init();
+    ioc_set_clock(F1MHZ);
+}
+
+uint8_t samples[32];
+
+void ioc_show(void* param) {
+    uint8_t* data = (uint8_t*)(param);
+
+    for(int i = 0; i < 32; ++i) {
+        uart_write(UART0, 0x30 + data[i]);
+        for(int j = 0; j < 65535; ++j) __NOP;
+    }
 }
 
 /**
@@ -126,6 +141,8 @@ static void init_system(void)
  */
 int main(void)
 {
+    uint8_t i = 0;
+
     /* Initialize the SAM system */
     init_system();
 
@@ -134,8 +151,21 @@ int main(void)
 
     uart_write(UART0, 'U');
 
+    // TODO remove
+    pio_configure(PIOA, PIO_OUTPUT_0, (PIO_PA20 | PIO_PA22), PIO_DEFAULT);
+    ioc_set_handler(ioc_show, samples);
+    ioc_fetch(samples, 32);
+
     /* Loop forever */
     for (;;) {
         pio_toggle_pin(PIO_PA7_IDX);
+
+        if(i % 10 == 0)
+            pio_toggle_pin(PIO_PA20_IDX);
+
+        if(i % 30 == 0)
+            pio_toggle_pin(PIO_PA22_IDX);
+
+        ++i;
     }
 }

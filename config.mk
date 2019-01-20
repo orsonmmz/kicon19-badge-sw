@@ -54,7 +54,9 @@ TARGET_SRAM = sam4s_hello_sram.elf
 CSRCS = \
        main.c \
        buttons.c \
+       io_capture.c \
        common/services/clock/sam4s/sysclk.c               \
+       sam/drivers/pdc/pdc.c                              \
        sam/drivers/pio/pio.c                              \
        sam/drivers/pio/pio_handler.c                      \
        sam/drivers/pmc/pmc.c                              \
@@ -74,6 +76,7 @@ INC_PATH = \
        .                                          \
        common/services/clock                              \
        common/utils                                       \
+       sam/drivers/pdc                                    \
        sam/drivers/pio                                    \
        sam/drivers/pmc                                    \
        sam/drivers/tc                                     \

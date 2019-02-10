@@ -26,17 +26,91 @@
 
 #include "SSD1306_commands.h"
 #include "fonts.h"
+#include "uart.h"
+#include "pdc.h"
 
 
 uint8_t SSD1306_orientation = 0;//not used
 uint8_t SSD1306_maxX = 0;		//not used
 uint8_t SSD1306_maxY = 0;		//not used
 
+/*
+ * Pointer to TWI PDC register base
+ */
+static Pdc *g_p_twim_pdc;
 
 /*
  * buffer to store image and send to display
  */
-static uint8_t displayBuffer[LCD_WIDTH*LCD_PAGES];
+uint8_t displayBuffer[LCD_WIDTH*LCD_PAGES];
+
+static inline uint32_t twi_read_status(Twi *p_twi)
+{
+	return p_twi->TWI_SR;
+}
+
+static int busy = 0;
+static int dma_transfers = 0;
+
+/*
+ * \brief Write multiple bytes to a TWI compatible slave device.
+ *
+ * \param p_twi Pointer to a TWI instance.
+ * \param p_packet Packet information and data (see \ref twi_packet_t).
+ */
+static void twi_master_pdc_write(twi_packet_t *p_packet)
+{
+	pdc_packet_t pdc_twi_packet;
+    uint8_t *buffer = p_packet->buffer;
+
+	pdc_disable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTDIS | PERIPH_PTCR_RXTDIS);
+
+	pdc_twi_packet.ul_addr = (uint32_t)buffer;
+
+    pdc_twi_packet.ul_size = (p_packet->length);
+
+	pdc_tx_init(g_p_twim_pdc, &pdc_twi_packet, NULL);
+
+	/* Set write mode, slave address and 3 internal address byte lengths */
+	TWI0->TWI_MMR = 0;
+	TWI0->TWI_MMR = TWI_MMR_DADR(p_packet->chip) |
+	((p_packet->addr_length << TWI_MMR_IADRSZ_Pos) &
+	TWI_MMR_IADRSZ_Msk);
+
+	/* Set internal address for remote chip */
+	TWI0->TWI_IADR = 0;
+	TWI0->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
+
+
+	/////
+//	uint32_t status;
+//	status = twi_get_interrupt_status(TWI0);
+//	if((status & TWI_IMR_TXCOMP) == TWI_IMR_TXCOMP)
+//	{
+//		uart_write(UART0, 'b');
+//		twi_disable_interrupt(TWI0, TWI_SR_TXCOMP);
+//	}
+	/////
+
+	twi_enable_interrupt(TWI0, TWI_SR_ENDTX);
+
+	/* Enable the TX PDC transfer requests */
+	pdc_enable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTEN);
+
+	/* Waiting transfer done*/ //TODO remove waiting!
+	while((twi_read_status(TWI0) & TWI_SR_ENDTX) == 0);
+
+	/* Disable the RX and TX PDC transfer requests */
+	pdc_disable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTDIS | PERIPH_PTCR_RXTDIS);
+
+	while((twi_read_status(TWI0) & TWI_SR_TXRDY) == 0);
+
+	TWI0->TWI_CR = TWI_CR_STOP;
+	//TODO remove waiting!
+	while (!(TWI0->TWI_SR & TWI_SR_TXCOMP)) {
+	}
+}
+
 
 /*
  * initializes: twi connection, display,
@@ -63,7 +137,7 @@ void lcd_init(void)
 //		SSD1306_DISPLAYALLON 				// clear all
 	};
 
-	//init twi - fcn?
+	//init twi
     twi_options_t opt;
     opt.master_clk = sysclk_get_peripheral_hz();
     opt.speed      = 200000;    // TODO
@@ -75,11 +149,21 @@ void lcd_init(void)
 
     twi_master_init(TWI0, &opt);
 
+    /* Configure TWI interrupts */
+	NVIC_DisableIRQ(TWI0_IRQn);
+	NVIC_ClearPendingIRQ(TWI0_IRQn);
+	NVIC_SetPriority(TWI0_IRQn, 0);
+	NVIC_EnableIRQ(TWI0_IRQn);
+
+	/* Get pointer to TWI master PDC register base */
+	g_p_twim_pdc = twi_get_pdc_base(TWI0);
+
     // TODO twi_probe?
 
     //init buffer
 	uint16_t i;
 
+	//init displayBuffer to all on
 	for (i=0; i<LCD_WIDTH*LCD_PAGES; i++)
 	{
 		displayBuffer[i]=0xff;
@@ -95,8 +179,9 @@ void lcd_init(void)
  * buffer - bytes to send
  * size - number of bytes
  * ctrl_b - indicates whether it is cmd or data
+ * DMA - 1 to use DMA for transfer
  */
-void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b)
+void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA)
 {
     twi_packet_t packet_tx;
 
@@ -108,7 +193,13 @@ void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b)
     packet_tx.buffer      = (uint8_t *) buffer;
     packet_tx.length      = size;
 
-    twi_master_write(TWI0, &packet_tx);
+    if (DMA)
+    {
+    	twi_master_pdc_write(&packet_tx);
+    }else
+    {
+    	twi_master_write(TWI0, &packet_tx);
+    }
 }
 
 /*
@@ -118,8 +209,8 @@ void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b)
  */
 void lcd_writeCmd(uint8_t * buffer, int size)
 {
-	control_byte ctrl = cmd;
-	lcd_write(buffer, size, ctrl);
+	control_byte ctrl = CMD;
+	lcd_write(buffer, size, ctrl, 0);
 }
 
 /*
@@ -127,10 +218,10 @@ void lcd_writeCmd(uint8_t * buffer, int size)
  * buffer - bytes to send
  * size - number of bytes
  */
-void lcd_writeData(uint8_t * buffer, int size)
+void lcd_writeData(uint8_t * buffer, int size, int DMA)
 {
-	control_byte ctrl = data;
-	lcd_write(buffer, size, ctrl);
+	control_byte ctrl = DATA;
+	lcd_write(buffer, size, ctrl, DMA);
 }
 
 //not used
@@ -266,8 +357,7 @@ void SSD1306_setLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t col
 		{
 			SSD1306_setPixel(x0+i, (y1*(x0+i))/x1, color);
 		}
-	}
-	else
+	}else
 	{
 		//iterate over vertical direction
 		for (i=0; i<= (y1-y0); i++)
@@ -292,7 +382,6 @@ void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex,  uint8_t *buffer, int size)
 	{
 		displayBuffer[pageIndex*LCD_WIDTH+x+i] = buffer[i];
 	}
-
 }
 
 /*
@@ -313,7 +402,7 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex, uint8_t *string, int size, 
 
 	uint8_t stringBuffer [size*6];
 	uint8_t *strPtr=stringBuffer;
-	uint8_t *chrPtr;
+	const uint8_t *chrPtr;
 	uint8_t temp;
 
 	for(i=0; i<size; i++)
@@ -331,7 +420,6 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex, uint8_t *string, int size, 
 			*strPtr = temp;
 			++strPtr;
 			++chrPtr;
-
 		}
 
 	}
@@ -347,13 +435,28 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex, uint8_t *string, int size, 
  * pageIndex - index of the page to draw
  * pageBuffer - data to send
  */
-void SSD1306_drawPage( uint8_t pageIndex, uint8_t * pageBuffer)
+void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer)
 {
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
-	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, 0x02,SSD1306_SETHIGHCOLUMN,0x10};
+	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
 
 	lcd_writeCmd(cmds,sizeof(cmds));
-	lcd_writeData(pageBuffer, LCD_WIDTH);
+	lcd_writeData(pageBuffer, LCD_WIDTH, 0);
+}
+
+/*
+ * Draws a page on the display using DMA for transfer
+ * pageIndex - index of the page to draw
+ * pageBuffer - data to send
+ */
+void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer)
+{
+	busy = 1;
+	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
+	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
+
+	lcd_writeCmd(cmds,sizeof(cmds));
+	lcd_writeData(pageBuffer, LCD_WIDTH, 1);
 }
 
 /*
@@ -367,6 +470,23 @@ void SSD1306_drawBitmap(void)
 	{
 		SSD1306_drawPage(i, displayBuffer+(i*LCD_WIDTH));
 	}
+}
+
+/*
+ * Sends a displayBuffer to the display using DMA for transfer
+ */
+void SSD1306_drawBitmapDMA(void)
+{
+	busy = 1;
+	dma_transfers = LCD_PAGES;
+
+	SSD1306_drawPageDMA(0, displayBuffer);
+
+}
+
+int SSD1306_isBusy(void)
+{
+	return busy;
 }
 
 /*
@@ -386,6 +506,34 @@ void SSD1306_clear(void)
 	for (i=0; i<LCD_PAGES; i++)
 	{
 		SSD1306_drawPage(i, buffer);
+	}
+}
+
+void TWI0_Handler(void)
+{
+	uint32_t status;
+
+	status = twi_get_interrupt_mask(TWI0);
+
+	int pIndex;
+
+	if((status & TWI_IMR_ENDTX) == TWI_IMR_ENDTX)
+	{
+		uart_write(UART0, 'z');
+		twi_disable_interrupt(TWI0, TWI_SR_ENDTX);
+	}
+
+	dma_transfers--;
+
+	if(dma_transfers>0)
+	{
+		pIndex=LCD_PAGES-dma_transfers;
+		SSD1306_drawPageDMA(pIndex, displayBuffer+(pIndex*LCD_WIDTH));
+	}
+	else
+	{
+		busy = 0;
+		dma_transfers = 0;
 	}
 }
 

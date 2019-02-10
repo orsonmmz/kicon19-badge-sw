@@ -27,11 +27,13 @@
 #define LCD_PAGE_SIZE				8
 #define LCD_PAGES					LCD_HEIGHT/LCD_PAGE_SIZE
 
-#define SSD1306_address				0x3C
+#define SSD1306_address				0x3C //0x3D
 #define SSD1306_DC					6		//0=data 1=command
 #define SSD1306_CO					7 		//continuation bit
 #define SSD1306_data				0x40
 #define SSD1306_cmd					0x00
+
+#define SSD1306_Offset				0x00
 
 #define BLACK                       0 ///< Draw 'off' pixels
 #define WHITE                       1 ///< Draw 'on' pixels
@@ -39,16 +41,16 @@
 
 typedef enum
 {
-	data = SSD1306_data,
-	cmd = SSD1306_cmd
+	DATA = SSD1306_data,
+	CMD = SSD1306_cmd
 } control_byte;
 
 void lcd_init(void);
 
-void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b);
+void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA);
 
 void lcd_writeCmd(uint8_t * buffer, int size);
-void lcd_writeData(uint8_t * buffer, int size);
+void lcd_writeData(uint8_t * buffer, int size, int DMA);
 
 void SSD1306_setOrientation(uint8_t orientation);
 void SSD1306_swap(uint8_t *a, uint8_t *b);
@@ -62,5 +64,9 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex,  uint8_t *string, int size,
 
 void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer);
 void SSD1306_drawBitmap(void);
+
+int SSD1306_isBusy(void);
+void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer);
+void SSD1306_drawBitmapDMA(void);
 
 #endif /* LCD_H */

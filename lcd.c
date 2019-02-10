@@ -42,7 +42,7 @@ static Pdc *g_p_twim_pdc;
 /*
  * buffer to store image and send to display
  */
-uint8_t displayBuffer[LCD_WIDTH*LCD_PAGES];
+static uint8_t displayBuffer[LCD_WIDTH*LCD_PAGES];
 
 static inline uint32_t twi_read_status(Twi *p_twi)
 {
@@ -81,34 +81,60 @@ static void twi_master_pdc_write(twi_packet_t *p_packet)
 	TWI0->TWI_IADR = 0;
 	TWI0->TWI_IADR = twi_mk_addr(p_packet->addr, p_packet->addr_length);
 
-
-	/////
-//	uint32_t status;
-//	status = twi_get_interrupt_status(TWI0);
-//	if((status & TWI_IMR_TXCOMP) == TWI_IMR_TXCOMP)
-//	{
-//		uart_write(UART0, 'b');
-//		twi_disable_interrupt(TWI0, TWI_SR_TXCOMP);
-//	}
-	/////
-
 	twi_enable_interrupt(TWI0, TWI_SR_ENDTX);
 
 	/* Enable the TX PDC transfer requests */
 	pdc_enable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTEN);
+}
 
-	/* Waiting transfer done*/ //TODO remove waiting!
-	while((twi_read_status(TWI0) & TWI_SR_ENDTX) == 0);
+/*
+ * Writes data over twi
+ * buffer - bytes to send
+ * size - number of bytes
+ * ctrl_b - indicates whether it is cmd or data
+ * DMA - 1 to use DMA for transfer
+ */
+static void SSD1306_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA)
+{
+    twi_packet_t packet_tx;
 
-	/* Disable the RX and TX PDC transfer requests */
-	pdc_disable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTDIS | PERIPH_PTCR_RXTDIS);
+    packet_tx.chip        = SSD1306_address;
 
-	while((twi_read_status(TWI0) & TWI_SR_TXRDY) == 0);
+    packet_tx.addr[0] = (uint8_t) ctrl_b;
 
-	TWI0->TWI_CR = TWI_CR_STOP;
-	//TODO remove waiting!
-	while (!(TWI0->TWI_SR & TWI_SR_TXCOMP)) {
-	}
+    packet_tx.addr_length = 1;
+    packet_tx.buffer      = (uint8_t *) buffer;
+    packet_tx.length      = size;
+
+    if (DMA)
+    {
+    	twi_master_pdc_write(&packet_tx);
+    }else
+    {
+    	twi_master_write(TWI0, &packet_tx);
+    }
+}
+
+/*
+ * Writes a CMD over twi
+ * buffer - bytes to send
+ * size - number of bytes
+ */
+static void SSD1306_writeCmd(uint8_t * buffer, int size)
+{
+	control_byte ctrl = CMD;
+	SSD1306_write(buffer, size, ctrl, 0);
+}
+
+/*
+ * Writes data over twi
+ * buffer - bytes to send
+ * size - number of bytes
+ */
+static void SSD1306_writeData(uint8_t * buffer, int size, int DMA)
+{
+	control_byte ctrl = DATA;
+	SSD1306_write(buffer, size, ctrl, DMA);
 }
 
 
@@ -117,7 +143,7 @@ static void twi_master_pdc_write(twi_packet_t *p_packet)
  * fills displayBuffer with 0xff (pixels on)
  * clears the display
  */
-void lcd_init(void)
+void SSD1306_init(void)
 {
 	uint8_t init[] =
 	{
@@ -169,59 +195,9 @@ void lcd_init(void)
 		displayBuffer[i]=0xff;
 	}
 
-    lcd_writeCmd(init, sizeof(init));
+    SSD1306_writeCmd(init, sizeof(init));
 //    SSD1306_setOrientation(0);
     SSD1306_clear();
-}
-
-/*
- * Writes data over twi
- * buffer - bytes to send
- * size - number of bytes
- * ctrl_b - indicates whether it is cmd or data
- * DMA - 1 to use DMA for transfer
- */
-void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA)
-{
-    twi_packet_t packet_tx;
-
-    packet_tx.chip        = SSD1306_address;
-
-    packet_tx.addr[0] = (uint8_t) ctrl_b;
-
-    packet_tx.addr_length = 1;
-    packet_tx.buffer      = (uint8_t *) buffer;
-    packet_tx.length      = size;
-
-    if (DMA)
-    {
-    	twi_master_pdc_write(&packet_tx);
-    }else
-    {
-    	twi_master_write(TWI0, &packet_tx);
-    }
-}
-
-/*
- * Writes a CMD over twi
- * buffer - bytes to send
- * size - number of bytes
- */
-void lcd_writeCmd(uint8_t * buffer, int size)
-{
-	control_byte ctrl = CMD;
-	lcd_write(buffer, size, ctrl, 0);
-}
-
-/*
- * Writes data over twi
- * buffer - bytes to send
- * size - number of bytes
- */
-void lcd_writeData(uint8_t * buffer, int size, int DMA)
-{
-	control_byte ctrl = DATA;
-	lcd_write(buffer, size, ctrl, DMA);
 }
 
 //not used
@@ -440,8 +416,8 @@ void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer)
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
 	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
 
-	lcd_writeCmd(cmds,sizeof(cmds));
-	lcd_writeData(pageBuffer, LCD_WIDTH, 0);
+	SSD1306_writeCmd(cmds,sizeof(cmds));
+	SSD1306_writeData(pageBuffer, LCD_WIDTH, 0);
 }
 
 /*
@@ -455,8 +431,8 @@ void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer)
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
 	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
 
-	lcd_writeCmd(cmds,sizeof(cmds));
-	lcd_writeData(pageBuffer, LCD_WIDTH, 1);
+	SSD1306_writeCmd(cmds,sizeof(cmds));
+	SSD1306_writeData(pageBuffer, LCD_WIDTH, 1);
 }
 
 /*
@@ -524,6 +500,15 @@ void TWI0_Handler(void)
 	}
 
 	dma_transfers--;
+
+	/* Disable the RX and TX PDC transfer requests */
+	pdc_disable_transfer(g_p_twim_pdc, PERIPH_PTCR_TXTDIS | PERIPH_PTCR_RXTDIS);
+
+	while((twi_read_status(TWI0) & TWI_SR_TXRDY) == 0);
+
+	TWI0->TWI_CR = TWI_CR_STOP;
+	while (!(TWI0->TWI_SR & TWI_SR_TXCOMP)) {
+	}
 
 	if(dma_transfers>0)
 	{

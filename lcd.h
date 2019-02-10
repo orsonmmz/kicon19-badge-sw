@@ -45,12 +45,7 @@ typedef enum
 	CMD = SSD1306_cmd
 } control_byte;
 
-void lcd_init(void);
-
-void lcd_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA);
-
-void lcd_writeCmd(uint8_t * buffer, int size);
-void lcd_writeData(uint8_t * buffer, int size, int DMA);
+void SSD1306_init(void);
 
 void SSD1306_setOrientation(uint8_t orientation);
 void SSD1306_swap(uint8_t *a, uint8_t *b);
@@ -64,9 +59,9 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex,  uint8_t *string, int size,
 
 void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer);
 void SSD1306_drawBitmap(void);
-
-int SSD1306_isBusy(void);
 void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer);
 void SSD1306_drawBitmapDMA(void);
+
+int SSD1306_isBusy(void);
 
 #endif /* LCD_H */

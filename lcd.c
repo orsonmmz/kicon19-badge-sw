@@ -495,7 +495,6 @@ void TWI0_Handler(void)
 
 	if((status & TWI_IMR_ENDTX) == TWI_IMR_ENDTX)
 	{
-		uart_write(UART0, 'z');
 		twi_disable_interrupt(TWI0, TWI_SR_ENDTX);
 	}
 

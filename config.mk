@@ -55,7 +55,11 @@ CSRCS = \
        main.c \
        buttons.c \
        io_capture.c \
+       usb_handlers.c \
        common/services/clock/sam4s/sysclk.c               \
+       common/services/usb/class/cdc/device/udi_cdc.c     \
+       common/services/usb/class/cdc/device/udi_cdc_desc.c \
+       common/services/usb/udc/udc.c                      \
        sam/drivers/pdc/pdc.c                              \
        sam/drivers/pio/pio.c                              \
        sam/drivers/pio/pio_handler.c                      \
@@ -63,6 +67,7 @@ CSRCS = \
        sam/drivers/pmc/sleep.c                            \
        sam/drivers/tc/tc.c                                \
        sam/drivers/uart/uart.c                            \
+       sam/drivers/udp/udp_device.c                       \
        sam/drivers/wdt/wdt.c                              \
        sam/utils/cmsis/sam4s/source/templates/gcc/startup_sam4s.c \
        sam/utils/cmsis/sam4s/source/templates/system_sam4s.c \
@@ -75,12 +80,19 @@ ASSRCS =
 INC_PATH = \
        .                                          \
        common/services/clock                              \
+       common/services/ioport                             \
+       common/services/sleepmgr                           \
+       common/services/usb                                \
+       common/services/usb/class/cdc                      \
+       common/services/usb/class/cdc/device               \
+       common/services/usb/udc                            \
        common/utils                                       \
        sam/drivers/pdc                                    \
        sam/drivers/pio                                    \
        sam/drivers/pmc                                    \
        sam/drivers/tc                                     \
        sam/drivers/uart                                   \
+       sam/drivers/udp                                    \
        sam/drivers/wdt                                    \
        sam/utils                                          \
        sam/utils/cmsis/sam4s/include                      \

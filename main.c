@@ -1,6 +1,8 @@
 #include "asf.h"
 #include "buttons.h"
 #include "io_capture.h"
+#include "udc.h"
+#include "udi_cdc.h"
 
 /** Set default LED blink period to 250ms*3 */
 #define DEFAULT_LED_FREQ   4
@@ -10,6 +12,7 @@
 
 /** LED blink period */
 static volatile uint32_t led_blink_period = 0;
+volatile bool g_interrupt_enabled = true;
 
 /**
  *  \brief Handler for System Tick interrupt.
@@ -98,6 +101,9 @@ static void init_system(void)
     /* Disable the watchdog */
     wdt_disable(WDT);
 
+    irq_initialize_vectors();
+    cpu_irq_enable();
+
     /* Initialize the system clock */
     sysclk_init();
 
@@ -121,6 +127,9 @@ static void init_system(void)
 
     ioc_init();
     ioc_set_clock(F1MHZ);
+
+    /* Start USB stack to authorize VBus monitoring */
+    udc_start();
 }
 
 uint8_t samples[32];
@@ -158,6 +167,11 @@ int main(void)
 
     /* Loop forever */
     for (;;) {
+        if (udi_cdc_is_rx_ready()) {
+            //udi_cdc_putc(udi_cdc_getc());
+            uart_write(UART0, udi_cdc_getc());
+        }
+
         pio_toggle_pin(PIO_PA7_IDX);
 
         if(i % 10 == 0)

@@ -192,7 +192,7 @@ void SSD1306_init(void)
 	//init displayBuffer to all on
 	for (i=0; i<LCD_WIDTH*LCD_PAGES; i++)
 	{
-		displayBuffer[i]=0xff;
+		displayBuffer[i]=0x00;
 	}
 
     SSD1306_writeCmd(init, sizeof(init));

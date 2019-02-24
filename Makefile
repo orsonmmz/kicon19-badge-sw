@@ -5,7 +5,7 @@ MAKEFILE_PATH = sam/utils/make/Makefile.sam.in
 include $(MAKEFILE_PATH)
 
 # JTAG interface used by OpenOCD
-JTAG_IFACE = jlink
+JTAG_IFACE ?= jlink
 
 flash: $(TARGET_FLASH)
 	# GPNVM bit 1 has to be active in order to boot the flashed firmware

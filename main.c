@@ -3,6 +3,7 @@
 #include "io_capture.h"
 #include "udc.h"
 #include "udi_cdc.h"
+#include "commands.h"
 
 /** Set default LED blink period to 250ms*3 */
 #define DEFAULT_LED_FREQ   4
@@ -150,7 +151,8 @@ void ioc_show(void* param) {
  */
 int main(void)
 {
-    uint8_t i = 0;
+    const uint8_t *cmd_resp;
+    uint8_t i, j = 0;
 
     /* Initialize the SAM system */
     init_system();
@@ -168,18 +170,25 @@ int main(void)
     /* Loop forever */
     for (;;) {
         if (udi_cdc_is_rx_ready()) {
-            //udi_cdc_putc(udi_cdc_getc());
-            uart_write(UART0, udi_cdc_getc());
+            cmd_new_data(udi_cdc_getc());
+            cmd_resp = cmd_try_execute();
+
+            if (cmd_resp) {
+                for (i = 0; i < cmd_raw_len(cmd_resp); ++i) {
+                    udi_cdc_putc(cmd_resp[i]);
+                    uart_write(UART0, cmd_resp[i]); // TODO remove
+                }
+            }
         }
 
         pio_toggle_pin(PIO_PA7_IDX);
 
-        if(i % 10 == 0)
+        if(j % 10 == 0)
             pio_toggle_pin(PIO_PA20_IDX);
 
-        if(i % 30 == 0)
+        if(j % 30 == 0)
             pio_toggle_pin(PIO_PA22_IDX);
 
-        ++i;
+        ++j;
     }
 }

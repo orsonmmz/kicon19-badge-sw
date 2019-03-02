@@ -54,6 +54,7 @@ TARGET_SRAM = sam4s_hello_sram.elf
 CSRCS = \
        main.c \
        buttons.c \
+       commands.c \
        io_capture.c \
        usb_handlers.c \
        common/services/clock/sam4s/sysclk.c               \
@@ -151,4 +152,4 @@ LDFLAGS = \
 
 # Pre- and post-build commands
 PREBUILD_CMD =
-POSTBUILD_CMD =
+POSTBUILD_CMD = make commands_def.py

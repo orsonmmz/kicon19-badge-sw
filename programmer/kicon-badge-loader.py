@@ -28,25 +28,26 @@ import getopt
 class SerialIF:
     def __init__(self, device="/dev/ttyACM0"):
         self.ser = serial.Serial(
-            port=device, baudrate=115200, timeout=0.1, rtscts=False)
+            port=device, baudrate=115200, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0 )
 
     def send(self, x):
         if isinstance(x, str):
-            for c in x:
-                self.ser.write(c)
+            for c in x.encode("ascii"):
+                self.ser.write(struct.pack("B", c))
         elif isinstance(x, int):
             self.ser.write(struct.pack("B", x))
         else:
             self.ser.write(x)
+        self.ser.flush()
 
     def recv(self, count=1, timeout=10):
-        r = ""
+        r = b''
         t_start = time.time()
         while True:
             try:
                 state = self.ser.read(1)
-                if state != None:
-                    r += state
+                if len(state) > 0:
+                    r = r + state
                     if len(r) == count:
                         return r
             except:
@@ -62,7 +63,7 @@ class SerialIF:
             r = self.recv(2)
         except:
             return False
-        return len(r) == 2 and ord(r[0]) == 10 and ord(r[1]) == 13
+        return r == b'\x0a\x0d'
 
     def samba_read_word(self, addr):
         self.send("w%08x,#" % addr)
@@ -181,21 +182,21 @@ class AtmelEEFC:
         self.handle_status_error(status)
 
     def erase_sector(self, addr):
-        first_page = (addr / self.SECTOR_SIZE) * 16
+        first_page = (addr // self.SECTOR_SIZE) * 16
         status = self.send_command(self.EEFC_FCR_FCMD_EPA, first_page | 2)
         self.handle_status_error(status)
 
     def write_page(self, addr, data):
         buf = data
         if len(buf) < self.PAGE_SIZE:
-            buf += chr(0) * (self.PAGE_SIZE - len(buf))
+            buf += b'\x00' * (self.PAGE_SIZE - len(buf))
         i = 0
-        for d in struct.unpack("<%dL" % (self.PAGE_SIZE / 4), buf):
+        for d in struct.unpack("<%dL" % (self.PAGE_SIZE // 4), buf):
             self.iface.samba_write_word(self.flash.base_addr + addr + i * 4, d)
             i += 1
 
         status = self.send_command(
-            self.EEFC_FCR_FCMD_WP, addr / self.PAGE_SIZE)
+            self.EEFC_FCR_FCMD_WP, addr // self.PAGE_SIZE)
         self.handle_status_error(status)
 
     def read_page(self, addr):
@@ -235,7 +236,8 @@ class AtmelFlashProgrammer:
     def program(self, image, verify=False, progressFunc=None):
         self.eefc.unlock_all()
 
-        page_count = len(image) / self.flash.page_size
+        page_count = len(image) // self.flash.page_size
+        
         for page in range(0, page_count+1):
             addr = page * self.flash.page_size
             remaining = len(image) - addr

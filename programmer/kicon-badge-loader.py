@@ -30,7 +30,6 @@ class SerialIF:
     def __init__(self, device="/dev/ttyACM0"):
         self.ser = serial.Serial(
             port=device, baudrate=4000000, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
-        self.ser.set_buffer_size(rx_size = 12800, tx_size = 12800)
 
     def send(self, x):
         if isinstance(x, str):

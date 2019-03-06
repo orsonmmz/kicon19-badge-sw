@@ -29,7 +29,8 @@ import getopt
 class SerialIF:
     def __init__(self, device="/dev/ttyACM0"):
         self.ser = serial.Serial(
-            port=device, baudrate=115200, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
+            port=device, baudrate=4000000, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
+        self.ser.set_buffer_size(rx_size = 12800, tx_size = 12800)
 
     def send(self, x):
         if isinstance(x, str):
@@ -75,8 +76,11 @@ class SerialIF:
         self.send("W%08x,%08x#" % (addr, value))
 
     def samba_read(self, addr, size):
-        self.send("R%08x,%08x#" % (addr, size))
-        return self.recv(size)
+        r = b''
+        for n in range(0, (size+3)//4):
+            self.send("w%08x,#" % (addr + n * 4))
+            r = r + self.recv(4)
+        return r
 
     def samba_go(self, addr):
         self.send("G%08x#" % (addr))
@@ -255,13 +259,13 @@ class AtmelFlashProgrammer:
             progressFunc("Writing", page, page_count)
             self.eefc.write_page(addr, buf)
 
+
         for page in range(0, page_count+1):
             addr = page * self.flash.page_size
             remaining = len(image) - addr
             l = min(remaining, self.flash.page_size)
             buf = image[addr: addr + l]
             readback_buf = self.eefc.read_page(addr)[0:l]
-
             progressFunc("Verifying", page, page_count)
             if readback_buf != buf:
                 raise Exception(

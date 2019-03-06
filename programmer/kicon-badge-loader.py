@@ -25,10 +25,11 @@ import serial
 import struct
 import getopt
 
+
 class SerialIF:
     def __init__(self, device="/dev/ttyACM0"):
         self.ser = serial.Serial(
-            port=device, baudrate=115200, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0 )
+            port=device, baudrate=115200, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
 
     def send(self, x):
         if isinstance(x, str):
@@ -76,6 +77,9 @@ class SerialIF:
     def samba_read(self, addr, size):
         self.send("R%08x,%08x#" % (addr, size))
         return self.recv(size)
+
+    def samba_go(self, addr):
+        self.send("G%08x#" % (addr))
 
     def read_chip_id(self):
         R_CIDR = 0x400E0740
@@ -237,7 +241,7 @@ class AtmelFlashProgrammer:
         self.eefc.unlock_all()
 
         page_count = len(image) // self.flash.page_size
-        
+
         for page in range(0, page_count+1):
             addr = page * self.flash.page_size
             remaining = len(image) - addr
@@ -260,9 +264,13 @@ class AtmelFlashProgrammer:
 
             progressFunc("Verifying", page, page_count)
             if readback_buf != buf:
-                raise Exception("Verification failed: offending page 0x%08x" % addr)
+                raise Exception(
+                    "Verification failed: offending page 0x%08x" % addr)
 
         self.eefc.set_gpnvm(1)  # boot from flash
+ 
+    def run(self):
+        self.iface.samba_go( self.flash.base_addr )
 
 
 def report_progress(stage, n, max_n):
@@ -310,7 +318,8 @@ def main():
         image = load_binary_file(filename, pgm.get_flash_info().size)
         print("Programming: %s [%d bytes]" % (filename, len(image)))
         pgm.program(image, True, report_progress)
-        print("\nProgramming complete.")
+        print("\nProgramming complete, running the program.")
+        pgm.run()
     except Exception as error:
         print("Error occured: %s" % error)
         sys.exit(-1)

@@ -94,7 +94,7 @@ static void twi_master_pdc_write(twi_packet_t *p_packet)
  * ctrl_b - indicates whether it is cmd or data
  * DMA - 1 to use DMA for transfer
  */
-static void SSD1306_write(uint8_t * buffer,int size, control_byte ctrl_b, int DMA)
+static void SSD1306_write(const uint8_t *buffer,int size, control_byte ctrl_b, int DMA)
 {
     twi_packet_t packet_tx;
 
@@ -120,7 +120,7 @@ static void SSD1306_write(uint8_t * buffer,int size, control_byte ctrl_b, int DM
  * buffer - bytes to send
  * size - number of bytes
  */
-static void SSD1306_writeCmd(uint8_t * buffer, int size)
+static void SSD1306_writeCmd(const uint8_t *buffer, int size)
 {
 	control_byte ctrl = CMD;
 	SSD1306_write(buffer, size, ctrl, 0);
@@ -131,7 +131,7 @@ static void SSD1306_writeCmd(uint8_t * buffer, int size)
  * buffer - bytes to send
  * size - number of bytes
  */
-static void SSD1306_writeData(uint8_t * buffer, int size, int DMA)
+static void SSD1306_writeData(const uint8_t *buffer, int size, int DMA)
 {
 	control_byte ctrl = DATA;
 	SSD1306_write(buffer, size, ctrl, DMA);
@@ -393,7 +393,7 @@ void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size)
  * size - number of characters
  * color - black/white string
  */
-void SSD1306_setString(uint8_t x, uint8_t pageIndex, uint8_t *string, int size, uint8_t color)
+void SSD1306_setString(uint8_t x, uint8_t pageIndex, const char *string, int size, uint8_t color)
 {
 	// check if within bounds. check also the size?
 	if ((pageIndex >= LCD_PAGES) || (x >= LCD_WIDTH)) return;
@@ -436,7 +436,7 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex, uint8_t *string, int size, 
  * pageIndex - index of the page to draw
  * pageBuffer - data to send
  */
-void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer)
+void SSD1306_drawPage(uint8_t pageIndex, const uint8_t *pageBuffer)
 {
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
 	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
@@ -450,7 +450,7 @@ void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer)
  * pageIndex - index of the page to draw
  * pageBuffer - data to send
  */
-void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer)
+void SSD1306_drawPageDMA(uint8_t pageIndex, const uint8_t *pageBuffer)
 {
 	busy = 1;
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129

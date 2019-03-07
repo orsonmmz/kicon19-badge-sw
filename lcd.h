@@ -22,27 +22,27 @@
 
 #include <stdint.h>
 
-#define LCD_WIDTH					128
-#define LCD_HEIGHT					64
-#define LCD_PAGE_SIZE				8
-#define LCD_PAGES					LCD_HEIGHT/LCD_PAGE_SIZE
+#define LCD_WIDTH           128
+#define LCD_HEIGHT          64
+#define LCD_PAGE_SIZE       8
+#define LCD_PAGES           LCD_HEIGHT/LCD_PAGE_SIZE
 
-#define SSD1306_address				0x3C //0x3D
-#define SSD1306_DC					6		//0=data 1=command
-#define SSD1306_CO					7 		//continuation bit
-#define SSD1306_data				0x40
-#define SSD1306_cmd					0x00
+#define SSD1306_address     0x3C //0x3D
+#define SSD1306_DC          6        //0=data 1=command
+#define SSD1306_CO          7         //continuation bit
+#define SSD1306_data        0x40
+#define SSD1306_cmd         0x00
 
-#define SSD1306_Offset				0x00
+#define SSD1306_Offset      0x00
 
-#define BLACK                       0 ///< Draw 'off' pixels
-#define WHITE                       1 ///< Draw 'on' pixels
-#define INVERSE 					2 ///< Invert pixels
+#define BLACK               0 ///< Draw 'off' pixels
+#define WHITE               1 ///< Draw 'on' pixels
+#define INVERSE             2 ///< Invert pixels
 
 typedef enum
 {
-	DATA = SSD1306_data,
-	CMD = SSD1306_cmd
+    DATA = SSD1306_data,
+    CMD = SSD1306_cmd
 } control_byte;
 
 void SSD1306_init(void);
@@ -56,11 +56,12 @@ void SSD1306_setPixel(uint8_t x, uint8_t y, uint8_t color);
 void SSD1306_setLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color);
 void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer, int size);
 void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size);
-void SSD1306_setString(uint8_t x, uint8_t pageIndex,  uint8_t *string, int size,uint8_t color);
+void SSD1306_setString(uint8_t x, uint8_t pageIndex, const char *string,
+        int size, uint8_t color);
 
-void SSD1306_drawPage(uint8_t pageIndex, uint8_t * pageBuffer);
+void SSD1306_drawPage(uint8_t pageIndex, const uint8_t *pageBuffer);
 void SSD1306_drawBitmap(void);
-void SSD1306_drawPageDMA(uint8_t pageIndex, uint8_t * pageBuffer);
+void SSD1306_drawPageDMA(uint8_t pageIndex, const uint8_t *pageBuffer);
 void SSD1306_drawBitmapDMA(void);
 
 int SSD1306_isBusy(void);

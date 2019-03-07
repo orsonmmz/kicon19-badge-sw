@@ -251,6 +251,12 @@ int main(void)
     enum adc_channel_num_t adc_chans[2] = {ADC_CHANNEL_3,ADC_CHANNEL_9};
     scope_initialize(adc_chans, 2);
 
+    if(!SSD1306_isBusy())
+    {
+        SSD1306_setString(0, 0, "KiCon 2019", 10, 1);
+        SSD1306_setLine(15, 15, 20, 60, 0);
+        SSD1306_drawBitmapDMA();
+    }
 
     /* Loop forever */
     for (;;) {

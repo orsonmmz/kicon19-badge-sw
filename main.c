@@ -138,16 +138,6 @@ static void init_system(void)
     udc_start();
 }
 
-uint8_t samples[32];
-
-void ioc_show(void* param) {
-    uint8_t* data = (uint8_t*)(param);
-
-    for(int i = 0; i < 32; ++i) {
-        uart_write(UART0, 0x30 + data[i]);
-        for(int j = 0; j < 65535; ++j) __NOP;
-    }
-}
 
 ////////spi
 /* Chip select. */
@@ -202,11 +192,6 @@ int main(void)
     init_timer_isr();
 
     uart_write(UART0, 'U');
-
-    // TODO remove
-    pio_configure(PIOA, PIO_OUTPUT_0, (PIO_PA20 | PIO_PA22), PIO_DEFAULT);
-    ioc_set_handler(ioc_show, samples);
-    ioc_fetch(samples, 32);
 
 //
 //    uint8_t siema[5]= "siema";
@@ -273,12 +258,6 @@ int main(void)
         }
 
         pio_toggle_pin(PIO_PA7_IDX);
-
-        if(j % 10 == 0)
-            pio_toggle_pin(PIO_PA20_IDX);
-
-        if(j % 30 == 0)
-            pio_toggle_pin(PIO_PA22_IDX);
 
         ++j;
 

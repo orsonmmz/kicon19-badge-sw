@@ -1,6 +1,7 @@
 #include "asf.h"
 #include "buttons.h"
 #include "io_capture.h"
+#include "logic_analyzer.h"
 #include "udc.h"
 #include "udi_cdc.h"
 #include "commands.h"
@@ -41,8 +42,13 @@ void TC0_Handler(void)
     if (led_blink_period == LED_BLINK_PERIOD) {
         int buttons = btn_state();
 
-        if(buttons)
+        if(buttons) {
             uart_write(UART0, buttons + 0x30);
+
+            if (btn_is_pressed(BUT1)) {
+                la_trigger();
+            }
+        }
 
         pio_toggle_pin(PIO_PA8_IDX);
         led_blink_period = 0;
@@ -132,7 +138,7 @@ static void init_system(void)
     SSD1306_init();
 
     ioc_init();
-    ioc_set_clock(F1MHZ);
+    la_init();
 
     /* Start USB stack to authorize VBus monitoring */
     udc_start();

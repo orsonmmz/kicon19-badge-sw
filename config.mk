@@ -56,6 +56,7 @@ CSRCS = \
        buttons.c \
        commands.c \
        io_capture.c \
+       logic_analyzer.c \
        usb_handlers.c \
        lcd.c \
        scope.c \

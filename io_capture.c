@@ -46,10 +46,10 @@ static void capture_handler(Pio *p_pio)
     /* Clear any unwanted data */
     pio_capture_read(PIOA, &dummy_data);
 
-    busy = 0;
-
     if(finish_handler)
         (*finish_handler)(finish_handler_param);
+
+    busy = 0;
 }
 
 

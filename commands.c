@@ -22,18 +22,18 @@
 
 #define CMD_BUF_SIZE    257
 static uint8_t cmd_buf[CMD_BUF_SIZE] = {0,};
-static uint8_t cmd_buf_ptr = 0;
+static uint16_t cmd_buf_idx = 0;
 static uint8_t cmd_resp_buf[CMD_BUF_SIZE];
 static uint8_t cmd_overflow = 0;
 
 void cmd_new_data(uint8_t data)
 {
-    cmd_buf[cmd_buf_ptr] = data;
-    ++cmd_buf_ptr;
+    cmd_buf[cmd_buf_idx] = data;
+    ++cmd_buf_idx;
 
-    if (cmd_buf_ptr == CMD_BUF_SIZE) {
+    if (cmd_buf_idx == CMD_BUF_SIZE) {
         cmd_overflow = 1;
-        cmd_buf_ptr = 0;
+        cmd_buf_idx = 0;
     }
 }
 
@@ -48,7 +48,7 @@ static inline void cmd_set_response(uint8_t *buf, uint8_t response)
 static inline void cmd_buf_reset(void)
 {
     cmd_overflow = 0;
-    cmd_buf_ptr = 0;
+    cmd_buf_idx = 0;
 }
 
 
@@ -90,12 +90,12 @@ const uint8_t* cmd_try_execute()
     }
 
     /* Handle reset request */
-    else if (cmd_buf_ptr == 1 && cmd_len == CMD_TYPE_RESET) {
+    else if (cmd_buf_idx == 1 && cmd_len == CMD_TYPE_RESET) {
         cmd_set_response(cmd_resp_buf, CMD_RESP_RESET);
     }
 
     /* Is the command complete? (+2 stands for the cmd_len and crc fields) */
-    else if (cmd_len + 2 > cmd_buf_ptr) {
+    else if (cmd_len + 2 > cmd_buf_idx) {
         return NULL;
     }
 

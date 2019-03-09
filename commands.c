@@ -18,6 +18,7 @@
  */
 
 #include "commands.h"
+#include "command_handlers.h"
 #include <stddef.h>
 
 #define CMD_BUF_SIZE    257

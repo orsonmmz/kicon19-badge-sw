@@ -56,14 +56,14 @@ const uint8_t* cmd_try_execute(void);
  * @brief Calculates raw command length.
  * @return Command length in bytes.
  */
-static inline unsigned cmd_raw_len(uint8_t *cmd)
+static inline unsigned cmd_raw_len(const uint8_t *cmd)
 {
     /* payload length is stored in the first byte
        +2 stands for the length and crc fields */
     return cmd[0] + 2;
 }
 
-static inline unsigned cmd_payload_len(uint8_t *cmd)
+static inline unsigned cmd_payload_len(const uint8_t *cmd)
 {
     return cmd[0];
 }

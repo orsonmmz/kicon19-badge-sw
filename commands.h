@@ -18,7 +18,7 @@
  */
 
 /**
- * Commands use the following format:
+ * Multiprotocol commands use the following format:
  *
  * offset | description
  * -------+------------
@@ -37,8 +37,10 @@
 #include <stdint.h>
 #include "commands_def.h"
 
+typedef enum { CMD_MULTIPROTOCOL, CMD_SUMP } cmd_mode_t;
+
 /**
- * @brief Adds new data to the command buffer.
+ * @brief Adds a byte to the command buffer.
  * Call whenever a new data is received.
  * @param data is the received character.
  */
@@ -46,11 +48,21 @@ void cmd_new_data(uint8_t data);
 
 /**
  * @brief Try to execute the buffer contents.
- * @return Command interpreter response following the command format.
- * (ownership is not transferred, do not free the pointer).
- * @see cmd_resp_t
+ * @return 1 when the command has been processed, 0 if waits for more data
  */
-const uint8_t* cmd_try_execute(void);
+int cmd_try_execute(void);
+
+/**
+ * @brief Returns the command response (if any) and its length.
+ * If there is no response, data will be set to NULL and len to 0.
+ */
+void cmd_get_resp(const uint8_t **data, unsigned int *len);
+
+/**
+ * @brief Notify that the command response has been processed and might be
+ * disposed. Should be called when the response data is no longer needed.
+ */
+void cmd_resp_processed(void);
 
 /**
  * @brief Calculates raw command length.
@@ -68,7 +80,14 @@ static inline unsigned cmd_payload_len(const uint8_t *cmd)
     return cmd[0];
 }
 
-void cmd_get_resp(const uint8_t **data, unsigned int *len);
-void cmd_resp_processed(void);
+/**
+ * @brief Switches between different command modes.
+ */
+void cmd_set_mode(cmd_mode_t mode);
+
+/**
+ * @brief Return the current command mode.
+ */
+cmd_mode_t cmd_get_mode(void);
 
 #endif /* COMMANDS_H */

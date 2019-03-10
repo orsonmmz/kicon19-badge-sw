@@ -22,7 +22,7 @@
 #include <stddef.h>
 
 static uint8_t cmd_overflow = 0;
-//static cmd_mode_t cmd_mode = MULTIPROTOCOL;
+static cmd_mode_t cmd_mode = CMD_MULTIPROTOCOL;
 
 // Received command buffer
 #define CMD_BUF_SIZE    257
@@ -97,7 +97,7 @@ static void cmd_fix_resp_crc(void)
 }
 
 
-const uint8_t* cmd_try_execute()
+static int cmd_execute_normal(void)
 {
     unsigned int cmd_len = cmd_buf[0];
 
@@ -113,7 +113,7 @@ const uint8_t* cmd_try_execute()
 
     /* Is the command complete? (+2 stands for the cmd_len and crc fields) */
     else if (cmd_len + 2 > cmd_buf_idx) {
-        return NULL;
+        return 0;
     }
 
     else {
@@ -139,6 +139,30 @@ const uint8_t* cmd_try_execute()
     cmd_buf_reset();
     cmd_fix_resp_crc();
     cmd_response(cmd_resp_buf, cmd_raw_len(cmd_resp_buf));
+
+    return 1;
+}
+
+
+int cmd_try_execute()
+{
+    int ret = 0;
+
+    switch (cmd_mode) {
+        case CMD_MULTIPROTOCOL:
+            ret = cmd_execute_normal();
+            break;
+
+        case CMD_SUMP:
+            ret = cmd_sump(cmd_buf, cmd_buf_idx);
+            break;
+    }
+
+    if (ret) {
+        cmd_buf_reset();
+    }
+
+    return ret;
 }
 
 
@@ -153,6 +177,18 @@ void cmd_resp_processed(void)
 {
     cmd_resp = NULL;
     cmd_resp_len = 0;
+}
+
+
+void cmd_set_mode(cmd_mode_t mode)
+{
+    cmd_mode = mode;
+}
+
+
+cmd_mode_t cmd_get_mode(void)
+{
+    return cmd_mode;
 }
 
 

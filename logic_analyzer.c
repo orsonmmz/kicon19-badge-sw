@@ -20,6 +20,8 @@
 #include "logic_analyzer.h"
 #include "io_capture.h"
 #include "lcd.h"
+#include "command_handlers.h"
+#include "sump.h"
 #include <string.h>
 
 // Samples buffer
@@ -74,4 +76,52 @@ static void la_acq_finished(void* param) {
         while(SSD1306_isBusy());
         SSD1306_drawPage(chan, CURRENT_PAGE);
     }
+}
+
+/* ID command response */
+static const uint8_t SUMP_ID_RESP[] = "1ALS";
+/* Device metadata */
+static const uint8_t SUMP_METADATA_RESP[] =
+    "\x01KiCon-Badge\x00"   // device name
+    "\x20\x00\x00\x00\x08"  // number of channels
+    "\x21\x00\x00\x00\xFF"  // sample memory available [bytes]
+    "\x23\x00\x00\x00\xFF"  // maximum sampling rate [Hz]
+    "\x24\x00\x00\x00\x00"  // protocol version
+    ;
+
+
+int cmd_sump(const uint8_t* cmd, unsigned int len)
+{
+    if (len == 1) {
+        switch (cmd[0]) {
+            case RESET: break;
+            case METADATA:
+                cmd_response(SUMP_METADATA_RESP, sizeof(SUMP_METADATA_RESP) - 1);
+                break;
+
+            case RUN: break;
+            case ID:
+                cmd_response(SUMP_ID_RESP, sizeof(SUMP_ID_RESP) - 1);
+                break;
+
+            case XON: break;
+            case XOFF: break;
+            default: return 0;   // unknown 1-byte command, perhaps incomplete
+        }
+
+        return 1;   // default handles unknown command
+
+    } else if (len >= 5) {
+        switch (cmd[0]) {
+            case SET_TRG_MASK: break;
+            case SET_TRG_VAL: break;
+            case SET_TRG_CFG: break;
+            case SET_DIV: break;
+            case SET_FLAGS: break;
+        }
+
+        return 1;   // clear the buffer anyway, there are no longer commands
+    }
+
+    return 0;
 }

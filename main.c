@@ -189,7 +189,8 @@ void spi_master_transfer(void *p_buf, uint32_t size)
 int main(void)
 {
     const uint8_t *cmd_resp;
-    uint8_t i, j = 0;
+    unsigned int cmd_resp_len;
+    int cmd_processed;
 
     /* Initialize the SAM system */
     init_system();
@@ -253,19 +254,19 @@ int main(void)
     for (;;) {
         if (udi_cdc_is_rx_ready()) {
             cmd_new_data(udi_cdc_getc());
-            cmd_resp = cmd_try_execute();
+            cmd_processed = cmd_try_execute();
 
-            if (cmd_resp) {
-                for (i = 0; i < cmd_raw_len(cmd_resp); ++i) {
-                    udi_cdc_putc(cmd_resp[i]);
-                    uart_write(UART0, cmd_resp[i]); // TODO remove
+            if (cmd_processed) {
+                cmd_get_resp(&cmd_resp, &cmd_resp_len);
+
+                if(cmd_resp && cmd_resp_len > 0) {
+                    udi_cdc_write_buf(cmd_resp, cmd_resp_len);
+                    cmd_resp_processed();
                 }
             }
         }
 
         pio_toggle_pin(PIO_PA7_IDX);
-
-        ++j;
 
         for(uint16_t i = 0; i < 65535; ++i) __NOP;
 

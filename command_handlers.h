@@ -20,6 +20,9 @@
 #ifndef COMMAND_HANDLERS_H
 #define COMMAND_HANDLERS_H
 
+/* Function that should be used by the command handlers to return a response */
+void cmd_response(const uint8_t* buf, unsigned int len);
+
 void cmd_uart(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);
 /*void cmd_i2c(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
 /*void cmd_spi(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/

@@ -68,5 +68,7 @@ static inline unsigned cmd_payload_len(const uint8_t *cmd)
     return cmd[0];
 }
 
+void cmd_get_resp(const uint8_t **data, unsigned int *len);
+void cmd_resp_processed(void);
 
 #endif /* COMMANDS_H */

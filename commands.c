@@ -21,11 +21,20 @@
 #include "command_handlers.h"
 #include <stddef.h>
 
+static uint8_t cmd_overflow = 0;
+//static cmd_mode_t cmd_mode = MULTIPROTOCOL;
+
+// Received command buffer
 #define CMD_BUF_SIZE    257
 static uint8_t cmd_buf[CMD_BUF_SIZE] = {0,};
 static uint16_t cmd_buf_idx = 0;
+
+// General-purpose response buffer
 static uint8_t cmd_resp_buf[CMD_BUF_SIZE];
-static uint8_t cmd_overflow = 0;
+
+// Current reponse
+static const uint8_t *cmd_resp = NULL;
+static uint8_t cmd_resp_len = 0;
 
 void cmd_new_data(uint8_t data)
 {
@@ -39,7 +48,14 @@ void cmd_new_data(uint8_t data)
 }
 
 
-static inline void cmd_set_response(uint8_t *buf, uint8_t response)
+void cmd_response(const uint8_t* buf, unsigned int len)
+{
+    cmd_resp = buf;
+    cmd_resp_len = len;
+}
+
+
+static inline void cmd_set_resp_status(uint8_t *buf, uint8_t response)
 {
     buf[0] = 1;    /* response length */
     buf[1] = response;
@@ -87,12 +103,12 @@ const uint8_t* cmd_try_execute()
 
     /* Check for overflows */
     if (cmd_overflow) {
-        cmd_set_response(cmd_resp_buf, CMD_RESP_OVERFLOW);
+        cmd_set_resp_status(cmd_resp_buf, CMD_RESP_OVERFLOW);
     }
 
     /* Handle reset request */
     else if (cmd_buf_idx == 1 && cmd_len == CMD_TYPE_RESET) {
-        cmd_set_response(cmd_resp_buf, CMD_RESP_RESET);
+        cmd_set_resp_status(cmd_resp_buf, CMD_RESP_RESET);
     }
 
     /* Is the command complete? (+2 stands for the cmd_len and crc fields) */
@@ -103,7 +119,7 @@ const uint8_t* cmd_try_execute()
     else {
         if (!cmd_valid_crc()) {
             cmd_buf_reset();
-            cmd_set_response(cmd_resp_buf, CMD_RESP_CRC_ERR);
+            cmd_set_resp_status(cmd_resp_buf, CMD_RESP_CRC_ERR);
 
         } else {
             /* Handle usual commands */
@@ -113,7 +129,7 @@ const uint8_t* cmd_try_execute()
                     break;
 
                 default:
-                    cmd_set_response(cmd_resp_buf, CMD_RESP_INVALID_CMD);
+                    cmd_set_resp_status(cmd_resp_buf, CMD_RESP_INVALID_CMD);
                     break;
             }
 
@@ -122,7 +138,21 @@ const uint8_t* cmd_try_execute()
 
     cmd_buf_reset();
     cmd_fix_resp_crc();
-    return cmd_resp_buf;
+    cmd_response(cmd_resp_buf, cmd_raw_len(cmd_resp_buf));
+}
+
+
+void cmd_get_resp(const uint8_t **data, unsigned int *len)
+{
+    *data = cmd_resp;
+    *len = cmd_resp_len;
+}
+
+
+void cmd_resp_processed(void)
+{
+    cmd_resp = NULL;
+    cmd_resp_len = 0;
 }
 
 
@@ -135,5 +165,5 @@ void cmd_uart(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out)
         uart_write(UART0, data_in[i]);
     }
 
-    cmd_set_response(data_out, CMD_RESP_OK);
+    cmd_set_resp_status(data_out, CMD_RESP_OK);
 }

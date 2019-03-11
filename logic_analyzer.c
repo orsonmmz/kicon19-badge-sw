@@ -20,6 +20,7 @@
 #include "logic_analyzer.h"
 #include "io_capture.h"
 #include "lcd.h"
+#include "udi_cdc.h"
 #include "command_handlers.h"
 #include "sump.h"
 #include <string.h>
@@ -29,6 +30,7 @@
 static uint8_t la_buffer[MAX_LA_BUF_SIZE];
 static uint32_t la_acq_size;
 static uint8_t la_chan_enabled;
+static la_target_t la_target = LA_NONE;
 
 // Acquisition finished handler
 static void la_acq_finished(void* param);
@@ -48,10 +50,18 @@ void la_trigger(void) {
 }
 
 
-static void la_acq_finished(void* param) {
-    (void) param;
-    //uint8_t* data = (uint8_t*)(param);
+void la_set_target(la_target_t target) {
+    la_target = target;
 
+    if (target == LA_LCD) {
+        // there is no point acquiring more samples than
+        // what can be displayed on the LCD
+        la_acq_size = LCD_WIDTH;
+    }
+}
+
+
+static void la_display_acq(void) {
     // double buffering
     uint8_t lcd_page[LCD_WIDTH], lcd_page2[LCD_WIDTH];
     uint8_t chan_mask;
@@ -78,6 +88,22 @@ static void la_acq_finished(void* param) {
     }
 }
 
+
+static void la_usb_send_acq(void) {
+    udi_cdc_write_buf(la_buffer, la_acq_size);
+}
+
+
+static void la_acq_finished(void* param) {
+    (void) param;
+    //uint8_t* data = (uint8_t*)(param);
+
+    switch (la_target) {
+        case LA_LCD: la_display_acq(); break;
+        case LA_USB: la_usb_send_acq(); break;
+        case LA_NONE: break;    // mute warnings
+    }
+}
 /* ID command response */
 static const uint8_t SUMP_ID_RESP[] = "1ALS";
 /* Device metadata */

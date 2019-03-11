@@ -22,7 +22,11 @@
 
 #define LA_CHANNELS     8
 
+///> Logic analyzer target (LCD display or SUMP protocol over USB)
+typedef enum { LA_NONE, LA_LCD, LA_USB } la_target_t;
+
 void la_init(void);
 void la_trigger(void);
+void la_set_target(la_target_t target);
 
 #endif /* LOGIC_ANALYZER_H */

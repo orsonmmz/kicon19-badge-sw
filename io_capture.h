@@ -22,7 +22,8 @@
 
 #include <stdint.h>
 
-typedef enum { F32MHZ, F16MHZ, F8MHZ, F4MHZ, F2MHZ, F1MHZ } clock_freq_t;
+typedef enum { F50MHZ, F40MHZ, F32MHZ, F25MHZ, F20MHZ, F16MHZ, F12_5MHZ,
+    F10MHZ, F8MHZ, F6MHZ, F5MHZ, F4MHZ, F3MHZ, F2MHZ, F1MHZ, F500KHZ, F250KHZ, F125KHZ } clock_freq_t;
 
 void ioc_init(void);
 void ioc_set_clock(clock_freq_t freq);

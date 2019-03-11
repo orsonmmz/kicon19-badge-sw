@@ -31,6 +31,7 @@ static int busy = 0;
 
 static void (*finish_handler)(void*) = NULL;
 static void* finish_handler_param = NULL;
+static int pio_pll_prescaler = 0;
 
 /** PIOA interrupt priority. */
 #define PIO_IRQ_PRI                    (4)
@@ -66,12 +67,8 @@ void ioc_init()
     pio_disable_interrupt(PIOA, 0xFFFFFFFF);
 
     /* Configure the sampling clock generator */
-    //pmc_enable_pllbck(24, 0x00, 6); // 50 MHz (=12 MHz * (24+1) / 6)
-    pmc_enable_pllbck(15, 0x00, 3); // 64 MHz (=12 MHz * (15+1) / 6)
-    pio_configure(PIOA, PIO_PERIPH_B, PIO_PA6B_PCK0, PIO_DEFAULT);
-    pmc_disable_pck(PMC_PCK_0);
-    while(!pmc_is_locked_pllbck());
     ioc_set_clock(F1MHZ);
+    pio_configure(PIOA, PIO_PERIPH_B, PIO_PA6B_PCK0, PIO_DEFAULT);
 
     p_pdc = pio_capture_get_pdc_base(PIOA);
 
@@ -85,15 +82,43 @@ void ioc_init()
 
 void ioc_set_clock(clock_freq_t freq)
 {
-    // TODO other frequencies might be achieved by the PLLB reconfiguration
+    int clk_pre = 0, pll_pre = 0;
+
+    pmc_disable_pck(PMC_PCK_0);
+
     switch(freq) {
-        case F32MHZ:  pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_2); break;
-        case F16MHZ:  pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_4); break;
-        case F8MHZ:   pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_8); break;
-        case F4MHZ:   pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_16); break;
-        case F2MHZ:   pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_32); break;
-        case F1MHZ:   pmc_switch_pck_to_pllbck(PMC_PCK_0, PMC_PCK_PRES_CLK_64); break;
+        //case F64MHZ:    pll_pre = 31; clk_pre = PMC_PCK_PRES_CLK_1; break;
+        case F32MHZ:    pll_pre = 31; clk_pre = PMC_PCK_PRES_CLK_2; break;
+        case F16MHZ:    pll_pre = 31; clk_pre = PMC_PCK_PRES_CLK_4; break;
+        case F8MHZ:     pll_pre = 31; clk_pre = PMC_PCK_PRES_CLK_8; break;
+
+        case F50MHZ:    pll_pre = 24; clk_pre = PMC_PCK_PRES_CLK_1; break;
+        case F25MHZ:    pll_pre = 24; clk_pre = PMC_PCK_PRES_CLK_2; break;
+        case F12_5MHZ:  pll_pre = 24; clk_pre = PMC_PCK_PRES_CLK_4; break;
+
+        case F40MHZ:    pll_pre = 19; clk_pre = PMC_PCK_PRES_CLK_1; break;
+        case F20MHZ:    pll_pre = 19; clk_pre = PMC_PCK_PRES_CLK_2; break;
+        case F10MHZ:    pll_pre = 19; clk_pre = PMC_PCK_PRES_CLK_4; break;
+        case F5MHZ:     pll_pre = 19; clk_pre = PMC_PCK_PRES_CLK_8; break;
+
+        case F6MHZ:     pll_pre = 2;  clk_pre = PMC_PCK_PRES_CLK_1; break;
+        case F3MHZ:     pll_pre = 2;  clk_pre = PMC_PCK_PRES_CLK_2; break;
+
+        case F4MHZ:     pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_1; break;
+        case F2MHZ:     pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_2; break;
+        case F1MHZ:     pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_4; break;
+        case F500KHZ:   pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_8; break;
+        case F250KHZ:   pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_16; break;
+        case F125KHZ:   pll_pre = 1;  clk_pre = PMC_PCK_PRES_CLK_32; break;
     }
+
+    if (pll_pre != pio_pll_prescaler) {
+        pio_pll_prescaler = pll_pre;
+        pmc_enable_pllbck(pll_pre, 0x00, 6);
+        while(!pmc_is_locked_pllbck());
+    }
+
+    pmc_switch_pck_to_pllbck(PMC_PCK_0, clk_pre);
 }
 
 

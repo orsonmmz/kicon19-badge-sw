@@ -104,6 +104,45 @@ static void la_acq_finished(void* param) {
         case LA_NONE: break;    // mute warnings
     }
 }
+
+
+// Finds the closest available clock frequency
+// basing a 100 MHz prescaler (default OLS clock frequency)
+static clock_freq_t la_get_clock(int prescaler_100M) {
+    struct {
+        clock_freq_t clock_freq;
+        int max_prescaler;
+    } freqs[] = {
+        { F50MHZ,   1 },
+        { F32MHZ,   2 },
+        { F25MHZ,   3 },
+        { F20MHZ,   4 },
+        { F16MHZ,   5 },
+        { F12_5MHZ, 7 },
+        { F10MHZ,   10 },
+        { F8MHZ,    13 },
+        { F6MHZ,    17 },
+        { F5MHZ,    21 },
+        { F4MHZ,    27 },
+        { F3MHZ,    39 },
+        { F2MHZ,    65 },
+        { F1MHZ,    132 },
+        { F500KHZ,  265 },
+        { F250KHZ,  532 },
+    };
+
+    for(unsigned int i = 0; i < sizeof(freqs); ++i) {
+        if (freqs[i].max_prescaler < prescaler_100M)
+            continue;
+
+        return freqs[i].clock_freq;
+    }
+
+    // the slowest available sampling frequency
+    return F125KHZ;
+}
+
+
 /* ID command response */
 static const uint8_t SUMP_ID_RESP[] = "1ALS";
 /* Device metadata */
@@ -121,29 +160,38 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
 {
     if (len == 1) {
         switch (cmd[0]) {
-            case RESET: break;
             case METADATA:
                 cmd_response(SUMP_METADATA_RESP, sizeof(SUMP_METADATA_RESP) - 1);
                 break;
 
-            case RUN: break;
+            case RUN:
+                la_trigger();
+                break;
+
             case ID:
                 cmd_response(SUMP_ID_RESP, sizeof(SUMP_ID_RESP) - 1);
                 break;
 
-            case XON: break;
-            case XOFF: break;
+            case XON: break;    // TODO
+            case XOFF: break;   // TODO
+            case RESET: break;
             default: return 0;   // unknown 1-byte command, perhaps incomplete
         }
 
         return 1;   // default handles unknown command
 
     } else if (len >= 5) {
+        unsigned int arg = (cmd[4] << 3) | (cmd[3] << 2) | (cmd[2] << 1) | cmd[1];
+
         switch (cmd[0]) {
             case SET_TRG_MASK: break;
             case SET_TRG_VAL: break;
             case SET_TRG_CFG: break;
-            case SET_DIV: break;
+
+            case SET_DIV:
+                ioc_set_clock(la_get_clock(arg));
+                break;
+
             case SET_FLAGS: break;
         }
 

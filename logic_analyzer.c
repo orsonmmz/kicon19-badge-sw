@@ -108,11 +108,12 @@ static void la_acq_finished(void* param) {
 static const uint8_t SUMP_ID_RESP[] = "1ALS";
 /* Device metadata */
 static const uint8_t SUMP_METADATA_RESP[] =
-    "\x01KiCon-Badge\x00"   // device name
-    "\x20\x00\x00\x00\x08"  // number of channels
-    "\x21\x00\x00\x00\xFF"  // sample memory available [bytes]
-    "\x23\x00\x00\x00\xFF"  // maximum sampling rate [Hz]
-    "\x24\x00\x00\x00\x00"  // protocol version
+//  token  value
+    "\x01" "KiCon-Badge\x00"   // device name
+    "\x20" "\x00\x00\x00\x08"  // number of channels
+    "\x21" "\x00\x00\x00\xFF"  // sample memory available [bytes]
+    "\x23" "\x02\xfa\xf0\x80"  // maximum sampling rate [Hz] = 50 MHz
+    "\x24" "\x00\x00\x00\x00"  // protocol version
     ;
 
 

@@ -76,4 +76,11 @@
 // From module: WDT - Watchdog Timer
 #include <wdt.h>
 
+// From module: SPI
+#include <spi.h>
+
+// From module: ADC
+#include <adc.h>
+
+
 #endif // ASF_H

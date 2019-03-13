@@ -361,6 +361,31 @@ void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex,  uint8_t *buffer, int size)
 }
 
 /*
+ * Updates the displayBuffer
+ * x - coordinates in horizontal plane
+ * pageIndex - coordinates in verical plane - index of page
+ * color - value
+ */
+void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size)
+{
+	// check if within bounds
+	if ((pageIndex >= LCD_PAGES) || (x >= LCD_WIDTH)) return;
+	int i;
+	uint8_t value = 0;
+
+    switch(color)
+    {
+    	case WHITE:   value = 0xff; break;
+    	case BLACK:   value = 0x00; break;
+    }
+
+	for(i=0; i< size; i++)
+	{
+		displayBuffer[pageIndex*LCD_WIDTH+x+i] = value;
+	}
+}
+
+/*
  * Sets a string in the displayBuffer
  * x - beginning of the string in the horizontal plane
  * pageIndex - beginning of the string in vertical plane

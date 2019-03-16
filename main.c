@@ -266,6 +266,7 @@ int main(void)
             }
         }
 
+        la_send_data();
         pio_toggle_pin(PIO_PA7_IDX);
 
         for(uint16_t i = 0; i < 65535; ++i) __NOP;

@@ -24,16 +24,61 @@
 #include "command_handlers.h"
 #include "sump.h"
 #include <string.h>
+#include <limits.h>
 
 // Samples buffer
-#define MAX_LA_BUF_SIZE     128
+#define MAX_LA_BUF_SIZE     65536
 static uint8_t la_buffer[MAX_LA_BUF_SIZE];
 static uint32_t la_acq_size;
 static uint8_t la_chan_enabled;
 static la_target_t la_target = LA_NONE;
 
+static uint8_t la_trigger_mask = 0;
+static uint8_t la_trigger_val = 0;
+static uint32_t la_read_cnt = 0;
+static uint32_t la_delay_cnt = 0;
+
+static volatile uint32_t la_data_len = 0;
+static volatile uint8_t *la_data_ptr = NULL;
+
 // Acquisition finished handler
 static void la_acq_finished(void* param);
+
+
+// Fixes the hardware channel order
+// (see the connection between the logic probes pin header and the input buffer)
+static void la_fix_channels(void) {
+    for(unsigned int i = 0; i < la_acq_size; ++i) {
+        uint8_t val = la_buffer[i];
+        la_buffer[i] =(val & 0x0f)
+            | (val & 0x80) >> 3
+            | (val & 0x40) >> 1
+            | (val & 0x20) << 1
+            | (val & 0x10) << 3;
+    }
+}
+
+
+// Searches the acquisition buffer for a sample matching the configured
+// trigger. Will return the sample index or UINT_MAX if nothing found.
+static uint32_t la_find_trigger(void) {
+    if (la_trigger_mask == 0) {
+        return 0;
+    }
+
+    uint8_t *buf_ptr = la_buffer;
+
+    for (uint32_t i = 0; i < la_acq_size; ++i) {
+        if ((*buf_ptr & la_trigger_mask) == la_trigger_val) {
+            return i;
+        }
+
+        ++buf_ptr;
+    }
+
+    return UINT_MAX;    // trigger not matched
+}
+
 
 void la_init(void) {
     la_acq_size = MAX_LA_BUF_SIZE;
@@ -61,7 +106,34 @@ void la_set_target(la_target_t target) {
 }
 
 
-static void la_display_acq(void) {
+void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val) {
+    la_trigger_mask = trigger_mask;
+    la_trigger_val = trigger_val;
+}
+
+
+void la_send_data(void) {
+    if(la_data_len == 0) {
+        return;
+    }
+
+    udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
+    la_data_len = 0;
+
+#if 0
+    // sending in chunks, does not seem to be necessary
+    /*while (la_data_len) {*/
+        uint32_t chunk = la_data_len > MAX_USB_CHUNK ? MAX_USB_CHUNK : la_data_len;
+        while(!udi_cdc_is_tx_ready());
+        udi_cdc_write_buf(la_data_ptr, chunk);
+        la_data_ptr += chunk;
+        la_data_len -= chunk;
+    /*}*/
+#endif
+}
+
+
+static void la_display_acq(uint32_t offset) {
     // double buffering
     uint8_t lcd_page[LCD_WIDTH], lcd_page2[LCD_WIDTH];
     uint8_t chan_mask;
@@ -89,8 +161,13 @@ static void la_display_acq(void) {
 }
 
 
-static void la_usb_send_acq(void) {
-    udi_cdc_write_buf(la_buffer, la_acq_size);
+static void la_usb_send_acq(uint32_t offset) {
+    // TODO handle read count & delay count
+    // TODO handle the trigger
+
+    la_data_len = la_acq_size;
+    la_data_ptr = la_buffer;
+    //udi_cdc_write_buf(la_buffer, la_acq_size);
 }
 
 
@@ -98,9 +175,17 @@ static void la_acq_finished(void* param) {
     (void) param;
     //uint8_t* data = (uint8_t*)(param);
 
+    la_fix_channels();
+    uint32_t offset = la_find_trigger();
+
+    if (offset > la_acq_size) {
+        // no match found, retrigger
+        //TODO retrigger
+    }
+
     switch (la_target) {
-        case LA_LCD: la_display_acq(); break;
-        case LA_USB: la_usb_send_acq(); break;
+        case LA_LCD: la_display_acq(offset); break;
+        case LA_USB: la_usb_send_acq(offset); break;
         case LA_NONE: break;    // mute warnings
     }
 }
@@ -150,7 +235,7 @@ static const uint8_t SUMP_METADATA_RESP[] =
 //  token  value
     "\x01" "KiCon-Badge\x00"   // device name
     "\x20" "\x00\x00\x00\x08"  // number of channels
-    "\x21" "\x00\x00\x00\xFF"  // sample memory available [bytes]
+    "\x21" "\x00\x00\xff\xff"  // sample memory available [bytes] = 65535
     "\x23" "\x02\xfa\xf0\x80"  // maximum sampling rate [Hz] = 50 MHz
     "\x24" "\x00\x00\x00\x00"  // protocol version
     ;
@@ -172,30 +257,55 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
                 cmd_response(SUMP_ID_RESP, sizeof(SUMP_ID_RESP) - 1);
                 break;
 
-            case XON: break;    // TODO
-            case XOFF: break;   // TODO
+            case XON: break;
+            case XOFF: break;
             case RESET: break;
             default: return 0;   // unknown 1-byte command, perhaps incomplete
         }
 
-        return 1;   // default handles unknown command
+        return 1;   // default handles unknown commands
 
     } else if (len >= 5) {
-        unsigned int arg = (cmd[4] << 3) | (cmd[3] << 2) | (cmd[2] << 1) | cmd[1];
+        // change the endianess
+        unsigned int arg = (cmd[4] << 24) | (cmd[3] << 16) | (cmd[2] << 8) | cmd[1];
 
         switch (cmd[0]) {
-            case SET_TRG_MASK: break;
-            case SET_TRG_VAL: break;
-            case SET_TRG_CFG: break;
+            case SET_TRG_MASK:
+                la_trigger_mask = (uint8_t)(arg & 0xff);
+                break;
+
+            case SET_TRG_VAL:
+                la_trigger_val = (uint8_t)(arg & 0xff);
+                break;
+
+            case SET_TRG_CFG:
+                break;
 
             case SET_DIV:
                 ioc_set_clock(la_get_clock(arg));
                 break;
 
-            case SET_FLAGS: break;
+            case SET_READ_DLY_CNT:
+                la_read_cnt = (uint16_t)((arg & 0xffff) + 1) * 4;
+                la_delay_cnt = (uint16_t)((arg >> 16) + 1) * 4;
+                la_acq_size = la_read_cnt;
+                break;
+
+            case SET_DELAY_COUNT:
+                la_delay_cnt = arg;
+                break;
+
+            case SET_READ_COUNT:
+                la_read_cnt = arg;
+                la_acq_size = la_read_cnt;
+                break;
+
+            // none of the flags has any meaning in this implementation
+            //case SET_FLAGS: break;
         }
 
-        return 1;   // clear the buffer anyway, there are no longer commands
+        // clear the buffer anyway, commands cannot be longer than 5 bytes
+        return 1;
     }
 
     return 0;

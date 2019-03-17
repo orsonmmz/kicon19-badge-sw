@@ -49,7 +49,7 @@ static inline uint32_t twi_read_status(Twi *p_twi)
 	return p_twi->TWI_SR;
 }
 
-static int busy = 0;
+static volatile int busy = 0;
 static int dma_transfers = 0;
 
 /*

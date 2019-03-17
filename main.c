@@ -204,21 +204,33 @@ void spi_master_transfer(void *p_buf, uint32_t size)
 #define BUFFER_SIZE				NUM_CHANNELS*LCD_WIDTH
 /** Reference voltage for ADC, in mv. */
 #define VOLT_REF				3300
+/** Maximum number of counts */
 #define MAX_DIGITAL				4095
+/** Number of pixels per count - to convert raw adc to number of pixels on the display*/
 #define RESOLUTION(PAGES)		(PAGES*8-1)/MAX_DIGITAL
+/** Number of mV per count - to convert raw adc to voltage */
+#define V_RESOLUTION			VOLT_REF/MAX_DIGITAL
 
-enum adc_channel_num_t ch_list[NUM_CHANNELS] = {ADC_CHANNEL_3, ADC_CHANNEL_9};
+
 uint16_t us_value[BUFFER_SIZE];
-uint16_t adc0_buffer[BUFFER_SIZE/2];
-uint32_t adc0_offset_pages;
-uint16_t adc1_buffer[BUFFER_SIZE/2];
-uint32_t adc_active_channels = 1;
-uint32_t adc_buffer_size;
-int adc0_buffer_rdy=0;
-int adc1_buffer_rdy=0;
 
 /** number of lcd pages for a channel*/
 uint32_t adc_pages_per_channel;
+volatile int adc_buffers_rdy=0;
+uint32_t adc_active_channels;
+uint32_t adc_buffer_size;
+
+struct adc_ch
+{
+	enum adc_channel_num_t channel;
+	uint32_t offset_pages;
+	uint16_t buffer[BUFFER_SIZE/2];
+
+//	uint16_t (*buffer)[BUFFER_SIZE/2]; //correct?? needed like that?
+};
+
+
+struct adc_ch adc_channels[2];
 
 /**
  * \brief Read converted data through PDC channel.
@@ -256,7 +268,7 @@ static uint32_t adc_read_buffer(Adc * p_adc, uint16_t * p_s_buffer, uint32_t ul_
  */
 void adc_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 {
-//	if (ul_size > NUM_CHANNELS) return;
+	if (ul_size > NUM_CHANNELS) return;
 
 	/* Disable PDC channel interrupt. */
 	adc_disable_interrupt(ADC, 0xFFFFFFFF);
@@ -268,13 +280,14 @@ void adc_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 		adc_active_channels = 1;
 		adc_buffer_size = BUFFER_SIZE/2;
 		adc_pages_per_channel = LCD_PAGES;
-
+		adc_channels[0].offset_pages=0;
 	}else
 	{
 		adc_active_channels = 2;
 		adc_buffer_size = BUFFER_SIZE;
 		adc_pages_per_channel = LCD_PAGES/2;
-		adc0_offset_pages = 4;
+		adc_channels[0].offset_pages=4;
+		adc_channels[1].offset_pages=0;
 	}
 
 
@@ -311,7 +324,7 @@ void adc_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 	/* Enable channels. */
 	for(int i = 0; i < ul_size; i++)
 	{
-		adc_enable_channel(ADC, adc_ch[i]);
+		adc_enable_channel(ADC, adc_channels[i].channel);
 	}
 
 	adc_configure_trigger(ADC, ADC_TRIG_SW, 1);
@@ -386,7 +399,10 @@ int main(void)
     pio_configure(PIOA, PIO_INPUT, PIO_PA20X1_AD3, PIO_DEFAULT);
     pio_configure(PIOA, PIO_INPUT, PIO_PA22X1_AD9, PIO_DEFAULT);
 
-    adc_initialize(ch_list, 2);
+    adc_channels[0].channel = ADC_CHANNEL_3;
+    adc_channels[1].channel = ADC_CHANNEL_9;
+
+    adc_initialize(adc_channels, 2);
 
 int updated=0;
 
@@ -418,41 +434,20 @@ int updated=0;
 
         spi_master_transfer(spi_buffer,1);
 
-        if(adc0_buffer_rdy) // into a function? make it any smarter with offsets?
+
+        if(adc_buffers_rdy && !SSD1306_isBusy() )
         {
-        	if(!SSD1306_isBusy())
-			{
-        		SSD1306_clearBuffer(0, adc0_offset_pages, WHITE, adc_pages_per_channel*LCD_WIDTH );
-        		for(int i = 0; i<(adc_buffer_size); i++)
-        		{
-        			SSD1306_setPixel(i, adc0_buffer[i], 0);
+        	for(int chan_cnt=0; chan_cnt<adc_active_channels; chan_cnt++)
+        	{
+
+				SSD1306_clearBuffer(0, adc_channels[chan_cnt].offset_pages, BLACK, adc_pages_per_channel*LCD_WIDTH);
+				for(int i = 0; i<(LCD_WIDTH); i++)
+				{
+					SSD1306_setPixel(i, adc_channels[chan_cnt].buffer[i], 1);
 				}
-//        		SSD1306_drawBitmapDMA();
-        		adc0_buffer_rdy=0;
-        		updated++;
         	}
-
-        }
-
-        if(adc1_buffer_rdy)
-        {
-        	if(!SSD1306_isBusy())
-			{
-        		SSD1306_clearBuffer(0, 0, WHITE, adc_pages_per_channel*LCD_WIDTH );
-        		for(int i = 0; i<(adc_buffer_size); i++)
-        		{
-        			SSD1306_setPixel(i, adc1_buffer[i], 0);
-				}
-//        		SSD1306_drawBitmapDMA();
-        		adc1_buffer_rdy=0;
-        		updated++;
-        	}
-
-        }
-        if(updated)
-        {
-        	SSD1306_drawBitmapDMA(); //make any logic whether to draw anything?
-        	updated=0;
+			SSD1306_drawBitmapDMA();
+			adc_buffers_rdy=0;
         }
     }
 }
@@ -465,37 +460,31 @@ int updated=0;
 void ADC_Handler(void)
 {
 	uint32_t i;
-	uint32_t ul_temp;
 	uint8_t uc_ch_num;
+	uint32_t adc0_counter;
+	uint32_t adc1_counter;
 
-	uint32_t adcV;
-	char buffer[6];
 
 	if ((adc_get_status(ADC) & ADC_ISR_RXBUFF) == ADC_ISR_RXBUFF)
 	{
+		adc0_counter=0;
+		adc1_counter=0;
 		for (i = 0; i < adc_buffer_size; i++)
 		{
 			uc_ch_num = (us_value[i] & ADC_LCDR_CHNB_Msk) >> ADC_LCDR_CHNB_Pos;
-			if (ch_list[0] == uc_ch_num && !adc0_buffer_rdy)
+			if (adc_channels[0].channel == uc_ch_num && !adc_buffers_rdy)
 			{
-				adc0_buffer[i] = (us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc0_offset_pages*8;
-//				adc0_buffer_rdy = 1;
+				adc_channels[0].buffer[adc0_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[0].offset_pages*8;
+				adc0_counter++;
 			}
-			else if (ch_list[1] == uc_ch_num && !adc1_buffer_rdy)
+			else if (adc_channels[1].channel == uc_ch_num && !adc_buffers_rdy)
 			{
-				adc1_buffer[i] = (us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel);
-//				adc1_buffer_rdy = 1;
-
-//				sprintf(buffer, "%u\r\n", us_value[i]);
-//				for(uint16_t i=0; i<6; i++)
-//				{
-//					while(!uart_is_tx_buf_empty(UART0));
-//					uart_write(UART0, buffer[i]);
-//				}
+				adc_channels[1].buffer[adc1_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[1].offset_pages*8;
+				adc1_counter++;
 			}
 		}
-		adc0_buffer_rdy = 1; //check which channels active?
-		adc1_buffer_rdy = 1;
+
+		adc_buffers_rdy = 1;
 
 		/* Start new pdc transfer. */
 		adc_read_buffer(ADC, us_value, adc_buffer_size);

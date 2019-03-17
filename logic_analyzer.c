@@ -41,6 +41,8 @@ static uint32_t la_delay_cnt = 0;
 static volatile uint32_t la_data_len = 0;
 static volatile uint8_t *la_data_ptr = NULL;
 
+static volatile uint8_t la_retrigger = 0;
+
 // Acquisition finished handler
 static void la_acq_finished(void* param);
 
@@ -91,6 +93,7 @@ void la_init(void) {
 void la_trigger(void) {
     /*memset(la_buffer, 0x00, sizeof(la_buffer));*/
     while(ioc_busy());
+    la_retrigger = 0;
     ioc_fetch(la_buffer, la_acq_size);
 }
 
@@ -112,24 +115,25 @@ void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val) {
 }
 
 
-void la_send_data(void) {
-    if(la_data_len == 0) {
-        return;
+void la_run(void) {
+    if (la_retrigger) {
+        la_trigger();
     }
-
-    udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
-    la_data_len = 0;
+    else if (la_data_len > 0) {
+        udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
+        la_data_len = 0;
 
 #if 0
-    // sending in chunks, does not seem to be necessary
-    /*while (la_data_len) {*/
-        uint32_t chunk = la_data_len > MAX_USB_CHUNK ? MAX_USB_CHUNK : la_data_len;
-        while(!udi_cdc_is_tx_ready());
-        udi_cdc_write_buf(la_data_ptr, chunk);
-        la_data_ptr += chunk;
-        la_data_len -= chunk;
-    /*}*/
+        // sending in chunks, does not seem to be necessary
+        /*while (la_data_len) {*/
+            uint32_t chunk = la_data_len > MAX_USB_CHUNK ? MAX_USB_CHUNK : la_data_len;
+            while(!udi_cdc_is_tx_ready());
+            udi_cdc_write_buf(la_data_ptr, chunk);
+            la_data_ptr += chunk;
+            la_data_len -= chunk;
+        /*}*/
 #endif
+    }
 }
 
 
@@ -180,7 +184,8 @@ static void la_acq_finished(void* param) {
 
     if (offset > la_acq_size) {
         // no match found, retrigger
-        //TODO retrigger
+        la_retrigger = 1;
+        return;
     }
 
     switch (la_target) {

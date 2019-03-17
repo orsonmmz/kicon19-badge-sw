@@ -201,13 +201,13 @@ void spi_master_transfer(void *p_buf, uint32_t size)
 /** Total number of ADC channels in use */
 #define NUM_CHANNELS			2
 /** Size of the receive buffer and transmit buffer. */
-#define BUFFER_SIZE				NUM_CHANNELS*LCD_WIDTH
+#define BUFFER_SIZE				NUM_CHANNELS*LCD_WIDTH*2
 /** Reference voltage for ADC, in mv. */
 #define VOLT_REF				3300
 /** Maximum number of counts */
 #define MAX_DIGITAL				4095
 /** Number of pixels per count - to convert raw adc to number of pixels on the display*/
-#define RESOLUTION(PAGES)		(PAGES*8-1)/MAX_DIGITAL
+#define RESOLUTION(PAGES)		(PAGES*8-1)/MAX_DIGITAL //optimize the pixels conversion?
 /** Number of mV per count - to convert raw adc to voltage */
 #define V_RESOLUTION			VOLT_REF/MAX_DIGITAL
 
@@ -216,17 +216,23 @@ uint16_t us_value[BUFFER_SIZE];
 
 /** number of lcd pages for a channel*/
 uint32_t adc_pages_per_channel;
+uint32_t adc_pixels_per_channel;
 volatile int adc_buffers_rdy=0;
 uint32_t adc_active_channels;
 uint32_t adc_buffer_size;
 
+uint32_t adc0_threshold=45; //into struct?
+uint32_t adc1_threshold=20;
+
+uint16_t adc0_buffer[BUFFER_SIZE/2];
+
 struct adc_ch
 {
 	enum adc_channel_num_t channel;
-	uint32_t offset_pages;
+	uint8_t offset_pages;
+	uint8_t offset_pixels;
 	uint16_t buffer[BUFFER_SIZE/2];
-
-//	uint16_t (*buffer)[BUFFER_SIZE/2]; //correct?? needed like that?
+	uint16_t *draw_buffer;
 };
 
 
@@ -280,15 +286,30 @@ void adc_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 		adc_active_channels = 1;
 		adc_buffer_size = BUFFER_SIZE/2;
 		adc_pages_per_channel = LCD_PAGES;
-		adc_channels[0].offset_pages=0;
+		adc_pixels_per_channel = adc_pages_per_channel * LCD_WIDTH;
+
+		adc_channels[0].channel = adc_ch[0];
+		adc_channels[0].offset_pages = 0;
+		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
+		adc_channels[0].draw_buffer = adc_channels[0].buffer;
 	}else
 	{
 		adc_active_channels = 2;
 		adc_buffer_size = BUFFER_SIZE;
 		adc_pages_per_channel = LCD_PAGES/2;
-		adc_channels[0].offset_pages=4;
+		adc_pixels_per_channel = adc_pages_per_channel * LCD_WIDTH;
+
+		adc_channels[0].channel = adc_ch[0];
+		adc_channels[0].offset_pages = 4;
+		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
+		adc_channels[0].draw_buffer = adc_channels[0].buffer;
+
+		adc_channels[1].channel = adc_ch[1];
 		adc_channels[1].offset_pages=0;
+		adc_channels[1].offset_pixels = adc_channels[1].offset_pages*LCD_PAGE_SIZE;
+		adc_channels[1].draw_buffer = adc_channels[1].buffer;
 	}
+
 
 
 	/* Initialize ADC. */
@@ -322,7 +343,7 @@ void adc_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 	NVIC_EnableIRQ(ADC_IRQn);
 
 	/* Enable channels. */
-	for(int i = 0; i < ul_size; i++)
+	for(uint32_t i = 0; i < ul_size; i++)
 	{
 		adc_enable_channel(ADC, adc_channels[i].channel);
 	}
@@ -399,12 +420,10 @@ int main(void)
     pio_configure(PIOA, PIO_INPUT, PIO_PA20X1_AD3, PIO_DEFAULT);
     pio_configure(PIOA, PIO_INPUT, PIO_PA22X1_AD9, PIO_DEFAULT);
 
-    adc_channels[0].channel = ADC_CHANNEL_3;
-    adc_channels[1].channel = ADC_CHANNEL_9;
+    enum adc_channel_num_t adc_chans[2] = {ADC_CHANNEL_3,ADC_CHANNEL_9};
 
-    adc_initialize(adc_channels, 2);
+    adc_initialize(adc_chans, 2);
 
-int updated=0;
 
     /* Loop forever */
     for (;;) {
@@ -437,13 +456,13 @@ int updated=0;
 
         if(adc_buffers_rdy && !SSD1306_isBusy() )
         {
-        	for(int chan_cnt=0; chan_cnt<adc_active_channels; chan_cnt++)
+        	for(uint32_t chan_cnt=0; chan_cnt<adc_active_channels; chan_cnt++)
         	{
 
-				SSD1306_clearBuffer(0, adc_channels[chan_cnt].offset_pages, BLACK, adc_pages_per_channel*LCD_WIDTH);
+				SSD1306_clearBuffer(0, adc_channels[chan_cnt].offset_pages, BLACK, adc_pixels_per_channel);
 				for(int i = 0; i<(LCD_WIDTH); i++)
 				{
-					SSD1306_setPixel(i, adc_channels[chan_cnt].buffer[i], 1);
+					SSD1306_setPixel(i, adc_channels[chan_cnt].draw_buffer[i], 1);
 				}
         	}
 			SSD1306_drawBitmapDMA();
@@ -464,24 +483,77 @@ void ADC_Handler(void)
 	uint32_t adc0_counter;
 	uint32_t adc1_counter;
 
+	uint32_t adc0_thr_found;
+	uint32_t adc1_thr_found;
+
+	uint32_t adc0_thr_index;
+	uint32_t adc1_thr_index;
 
 	if ((adc_get_status(ADC) & ADC_ISR_RXBUFF) == ADC_ISR_RXBUFF)
 	{
+		/* If previous buffer not processed yet - leave*/
+		if(adc_buffers_rdy)
+		{
+			/* Start new pdc transfer. */
+			adc_read_buffer(ADC, us_value, adc_buffer_size);
+			return;
+		}
+
 		adc0_counter=0;
 		adc1_counter=0;
+
+		adc0_thr_found=0;
+		adc1_thr_found=0;
+
+		adc0_thr_index=0;
+		adc1_thr_index=0;
+
+		adc_channels[0].draw_buffer = adc_channels[0].buffer;
+		adc_channels[1].draw_buffer = adc_channels[1].buffer;
+
 		for (i = 0; i < adc_buffer_size; i++)
 		{
+			/* 4MSB of ADC readout is channel number. Retrieve it */
 			uc_ch_num = (us_value[i] & ADC_LCDR_CHNB_Msk) >> ADC_LCDR_CHNB_Pos;
-			if (adc_channels[0].channel == uc_ch_num && !adc_buffers_rdy)
+
+			/* Compare the tag with a channel and put the value to the respective channel buffer*/
+			if (adc_channels[0].channel == uc_ch_num)
 			{
-				adc_channels[0].buffer[adc0_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[0].offset_pages*8;
+				/* Check if enough samples to display*/
+				if ((adc0_counter-adc0_thr_index)>=LCD_WIDTH)
+					continue;
+
+				/* Remove the tag from the ADC readout and convert it to number of pixels*/
+				adc_channels[0].buffer[adc0_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[0].offset_pixels;
+
+				/* Check if sample is above threshold - start to draw from here*/
+				if(!adc0_thr_found && adc_channels[0].buffer[adc0_counter]>= adc0_threshold)
+				{
+					adc_channels[0].draw_buffer = adc_channels[0].buffer + adc0_counter;
+					adc0_thr_index = adc0_counter;
+					adc0_thr_found = 1;
+				}
 				adc0_counter++;
+				continue;
 			}
-			else if (adc_channels[1].channel == uc_ch_num && !adc_buffers_rdy)
+			if (adc_channels[1].channel == uc_ch_num)
 			{
-				adc_channels[1].buffer[adc1_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[1].offset_pages*8;
+				 if ((adc1_counter-adc1_thr_index)>=LCD_WIDTH)
+					 continue;
+
+				/*Remove the tag from the ADC readout and convert it to number of pixels*/
+				adc_channels[1].buffer[adc1_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[1].offset_pixels;
+
+				if(!adc1_thr_found && adc_channels[1].buffer[adc1_counter]>= adc1_threshold)
+				{
+					adc_channels[1].draw_buffer = adc_channels[1].buffer + adc1_counter;
+					adc1_thr_index = adc1_counter;
+					adc1_thr_found = 1;
+				}
 				adc1_counter++;
+				continue;
 			}
+			break;
 		}
 
 		adc_buffers_rdy = 1;

@@ -58,6 +58,7 @@ CSRCS = \
        io_capture.c \
        usb_handlers.c \
        lcd.c \
+       scope.c \
        common/services/clock/sam4s/sysclk.c               \
        common/services/usb/class/cdc/device/udi_cdc.c     \
        common/services/usb/class/cdc/device/udi_cdc_desc.c \

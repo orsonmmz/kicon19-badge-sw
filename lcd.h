@@ -58,11 +58,13 @@ void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer, int size);
 void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size);
 void SSD1306_setString(uint8_t x, uint8_t pageIndex, const char *string,
         int size, uint8_t color);
+void SSD1306_drawBitmap(uint8_t x0, uint8_t y0, const uint8_t *bitmap,
+        uint8_t width, uint8_t height);
 
 void SSD1306_drawPage(uint8_t pageIndex, const uint8_t *pageBuffer);
-void SSD1306_drawBitmap(void);
+void SSD1306_drawBuffer(void);
 void SSD1306_drawPageDMA(uint8_t pageIndex, const uint8_t *pageBuffer);
-void SSD1306_drawBitmapDMA(void);
+void SSD1306_drawBufferDMA(void);
 
 int SSD1306_isBusy(void);
 

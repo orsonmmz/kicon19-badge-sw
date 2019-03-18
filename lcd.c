@@ -427,6 +427,24 @@ void SSD1306_setString(uint8_t x, uint8_t pageIndex, const char *string, int siz
 	SSD1306_setBuffer(x, pageIndex,stringBuffer, size*6);
 }
 
+void SSD1306_drawBitmap(uint8_t x0, uint8_t y0, const uint8_t *bitmap,
+        uint8_t width, uint8_t height)
+{
+    const uint8_t *ptr = bitmap;
+
+    for(int y = y0; y < y0 + height; ++y) {
+        for(int x = x0 / 8; x < (x0 + width) / 8; ++x) {
+            uint8_t data = *ptr;
+
+            for(int i = 7; i >= 0; --i) {
+                SSD1306_setPixel(x * 8 + (7 - i), y, (data & (1 << i)) ? 0 : 1);
+            }
+
+            ++ptr;
+        }
+    }
+}
+
 /*
  * Drawing Functions
  */
@@ -463,7 +481,7 @@ void SSD1306_drawPageDMA(uint8_t pageIndex, const uint8_t *pageBuffer)
 /*
  * Sends a displayBuffer to the display
  */
-void SSD1306_drawBitmap(void)
+void SSD1306_drawBuffer(void)
 {
 	uint16_t i;
 
@@ -476,7 +494,7 @@ void SSD1306_drawBitmap(void)
 /*
  * Sends a displayBuffer to the display using DMA for transfer
  */
-void SSD1306_drawBitmapDMA(void)
+void SSD1306_drawBufferDMA(void)
 {
 	busy = 1;
 	dma_transfers = LCD_PAGES;

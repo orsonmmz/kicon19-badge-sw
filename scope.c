@@ -190,7 +190,7 @@ void scope_draw(void)
 				SSD1306_setPixel(i, adc_channels[chan_cnt].draw_buffer[i], 1);
 			}
     	}
-		SSD1306_drawBitmapDMA();
+		SSD1306_drawBufferDMA();
 		adc_buffers_rdy=0;
     }
 }

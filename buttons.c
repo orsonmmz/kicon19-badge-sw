@@ -20,7 +20,7 @@
 #include "asf.h"
 #include "buttons.h"
 
-#define BUTTON_ENABLE_INT
+//#define BUTTON_ENABLE_INT
 
 #define BUT1_IDX    PIO_PA1_IDX
 #define BUT2_IDX    PIO_PA0_IDX

@@ -1,0 +1,147 @@
+/*
+ * Copyright (C) 2014 Julian Lewis
+ * @author Maciej Suminski <maciej.suminski@cern.ch>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 3
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you may find one here: http://www.gnu.org/licenses/gpl-3.0-standalone.html
+ * or you may search the http://www.gnu.org website for the version 3 license,
+ * or you may write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA
+ */
+
+/**
+ * Menu structure.
+ */
+
+#include "menu_struct.h"
+//#include "app_list.h"
+/*#include "settings/settings.h"*/  // TODO
+#include <stddef.h>
+
+int get_menu_size(const menu_list_t *menu) {
+    int len = 0;
+    const menu_entry_t* ptr = menu->entries;
+
+    // Look for sentinel
+    while((*ptr++).type != END) ++len;
+
+    return len;
+}
+
+
+void app_la_usb_func(void);
+application_t app_la_usb = { "Logic analyzer (USB)", app_la_usb_func };
+
+
+menu_list_t menu_la_lcd_trigger_input = {
+    "Trigger input", 0, {
+        { SETTING,  { .setting = "Free run" } },
+        { SETTING,  { .setting = "Input 0" } },
+        { SETTING,  { .setting = "Input 1" } },
+        { SETTING,  { .setting = "Input 2" } },
+        { SETTING,  { .setting = "Input 3" } },
+        { SETTING,  { .setting = "Input 4" } },
+        { SETTING,  { .setting = "Input 5" } },
+        { SETTING,  { .setting = "Input 6" } },
+        { SETTING,  { .setting = "Input 7" } },
+        { END,      { NULL } }
+    }
+};
+
+menu_list_t menu_la_lcd_trigger_edge = {
+    "Trigger edge", 0,
+    {
+        { SETTING,  { .setting = "Rising" } },
+        { SETTING,  { .setting = "Falling" } },
+        { SETTING,  { .setting = "Any" } },
+        { END,      { NULL } }
+    }
+};
+
+void app_la_lcd_func(void);
+application_t app_la_lcd = { "RUN", app_la_lcd_func };
+
+menu_list_t menu_la_lcd = {
+    "Logic analyzer (LCD)", 0,
+    {
+        { APP,       { .app     = &app_la_lcd } },
+        { SUBMENU,   { .submenu = &menu_la_lcd_trigger_input } },
+        { SUBMENU,   { .submenu = &menu_la_lcd_trigger_edge } },
+        { END,      { NULL } }
+    }
+};
+
+
+menu_list_t menu_scope_channels = {
+    "Channels", 0, {
+        { SETTING,  { .setting = "1" } },
+        { SETTING,  { .setting = "2" } },
+        { SETTING,  { .setting = "1 & 2" } },
+        { END,      { NULL } }
+    }
+};
+
+// TODO timebase
+// TODO trigger
+//
+void app_scope_func(void) {}
+application_t app_scope = { "RUN", app_scope_func };
+
+menu_list_t menu_scope = {
+    "Scope", 0,
+    {
+        { APP,       { .app     = &app_scope } },
+        { SUBMENU,   { .submenu = &menu_scope_channels } },
+        { END,      { NULL } }
+    }
+};
+
+
+void app_python_func(void) {}
+application_t app_python = { "Python interface", app_python_func };
+
+
+void app_uart_func(void) {}
+application_t app_uart = { "RUN", app_uart_func };
+
+menu_list_t menu_uart_baud = {
+    "Baud rate", 0, {
+        { SETTING,  { .setting = "115200" } },
+        { SETTING,  { .setting = "57600" } },
+        { SETTING,  { .setting = "38400" } },
+        { SETTING,  { .setting = "9600" } },
+        { END,      { NULL } }
+    }
+};
+
+menu_list_t menu_uart = {
+    "UART adapter", 0,
+    {
+        { APP,      { .app     = &app_uart } },
+        { SUBMENU,  { .submenu = &menu_uart_baud } },
+        { END,      { NULL } }
+    }
+};
+
+menu_list_t main_menu = {
+    "Main menu", 0,
+    {
+       { APP,       { .app     = &app_la_usb } },
+       { SUBMENU,   { .submenu = &menu_la_lcd } },
+       { SUBMENU,   { .submenu = &menu_scope } },
+       { APP,       { .app     = &app_python } },
+       { SUBMENU,   { .submenu = &menu_uart } },
+       { END,       { NULL } }
+    }
+};
+

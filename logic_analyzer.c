@@ -20,7 +20,9 @@
 #include "logic_analyzer.h"
 #include "io_capture.h"
 #include "lcd.h"
+#include "buttons.h"
 #include "udi_cdc.h"
+#include "commands.h"
 #include "command_handlers.h"
 #include "sump.h"
 #include <string.h>
@@ -314,4 +316,29 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
     }
 
     return 0;
+}
+
+
+void app_la_usb_func(void) {
+    // TODO LCD display
+    la_set_target(LA_USB);
+    cmd_set_mode(CMD_SUMP);
+    // TODO command processing
+
+    while(btn_state() != BUT2) {    // TODO BUT_LEFT
+        la_run();
+    }
+}
+
+
+void app_la_lcd_func(void) {
+    la_set_target(LA_LCD);
+    // TODO configure triggers
+
+    la_trigger();
+    while(btn_state() != BUT2) {    // TODO BUT_LEFT
+
+        //la_trigger();
+    }
+    while(!btn_state());
 }

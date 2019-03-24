@@ -29,6 +29,8 @@
 #include "uart.h"
 #include "pdc.h"
 
+#include <string.h>
+
 
 uint8_t SSD1306_orientation = 0;//not used
 uint8_t SSD1306_maxX = 0;		//not used
@@ -519,13 +521,18 @@ void SSD1306_clear(void)
 
 	for (i=0; i<LCD_WIDTH; i++)
 	{
-		buffer[i]=0xff;
+		buffer[i]=0x00;
 	}
 
 	for (i=0; i<LCD_PAGES; i++)
 	{
 		SSD1306_drawPage(i, buffer);
 	}
+}
+
+void SSD1306_clearBufferFull(void)
+{
+    memset(displayBuffer, 0x00, sizeof(displayBuffer));
 }
 
 void TWI0_Handler(void)

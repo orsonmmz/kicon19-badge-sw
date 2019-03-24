@@ -9,6 +9,8 @@
 #include "gfx.h"
 #include "SSD1306_commands.h"
 #include "scope.h"
+#include "menu.h"
+
 
 /** Set default LED blink period to 250ms*3 */
 #define DEFAULT_LED_FREQ   4
@@ -41,16 +43,6 @@ void TC0_Handler(void)
     led_blink_period++;
 
     if (led_blink_period == LED_BLINK_PERIOD) {
-        int buttons = btn_state();
-
-        if(buttons) {
-            uart_write(UART0, buttons + 0x30);
-
-            if (btn_is_pressed(BUT1)) {
-                la_trigger();
-            }
-        }
-
         pio_toggle_pin(PIO_PA8_IDX);
         led_blink_period = 0;
     }
@@ -140,6 +132,7 @@ static void init_system(void)
 
     ioc_init();
     la_init();
+    la_set_target(LA_USB);
 
     /* Start USB stack to authorize VBus monitoring */
     udc_start();
@@ -199,7 +192,7 @@ int main(void)
     /* Configure timer ISR to fire regularly */
     init_timer_isr();
 
-    uart_write(UART0, 'U');
+    uart_write(UART0, 'U'); // TODO remove
 
 //
 //    uint8_t siema[5]= "siema";
@@ -246,6 +239,16 @@ int main(void)
 
     SSD1306_drawBitmap(0, 0, kicon_logo, 128, 32);
     SSD1306_drawBufferDMA();
+    SSD1306_setString(20, 7, "press a button", 14, WHITE);
+
+    // TODO remove
+    cmd_set_mode(CMD_SUMP);
+
+    //while(!btn_state()); // wait for a button press   // TODO uncomment
+
+    while(1) {
+        menu();
+    }
 
     /* Loop forever */
     for (;;) {

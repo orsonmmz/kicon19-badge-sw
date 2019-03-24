@@ -139,47 +139,6 @@ static void init_system(void)
 }
 
 
-////////spi
-/* Chip select. */
-#define SPI_CHIP_SEL 1
-#define SPI_CHIP_PCS spi_get_pcs(SPI_CHIP_SEL)
-
-/* Clock polarity. */
-#define SPI_CLK_POLARITY 0
-
-/* Clock phase. */
-#define SPI_CLK_PHASE 0
-
-/* Delay before SPCK. */
-#define SPI_DLYBS 0x40
-
-/* Delay between consecutive transfers. */
-#define SPI_DLYBCT 0x10
-
-/* SPI clock setting (Hz). */
-static uint32_t gs_ul_spi_clock = 500000;
-
-
-void spi_master_transfer(void *p_buf, uint32_t size)
-{
-	uint32_t i;
-	uint8_t uc_pcs;
-	static uint16_t data;
-
-	uint8_t *p_buffer;
-
-	p_buffer = p_buf;
-
-	for (i = 0; i < size; i++) {
-		spi_write(SPI, p_buffer[i], 0, 0);
-		/* Wait transfer done. */
-//		while ((spi_read_status(SPI) & SPI_SR_RDRF) == 0);
-//		spi_read(SPI, &data, &uc_pcs);
-//		p_buffer[i] = data;
-	}
-}
-///////////////////////
-
 int main(void)
 {
     const uint8_t *cmd_resp;
@@ -193,46 +152,6 @@ int main(void)
     init_timer_isr();
 
     uart_write(UART0, 'U'); // TODO remove
-
-//
-//    uint8_t siema[5]= "siema";
-//    SSD1306_setString(0,0,siema, 5,1);
-//    SSD1306_drawBitmap();
-////
-//	siema[5]= "abcde";
-
-//    if(!SSD1306_isBusy())
-//    {
-//		SSD1306_setString(0,0,siema, 5,1);
-//		SSD1306_setLine(15, 15, 20, 60,0);
-//		SSD1306_drawBitmapDMA();
-//    }
-
-//////////////////// spi init
-    pio_configure(PIOA, PIO_PERIPH_A,
-            (PIO_PA12A_MISO | PIO_PA13A_MOSI | PIO_PA14A_SPCK ), PIO_OPENDRAIN | PIO_PULLUP);
-
-    pio_configure(PIOB, PIO_PERIPH_A,
-              (PIO_PB14A_NPCS1), PIO_OPENDRAIN | PIO_PULLUP);
-
-	spi_enable_clock(SPI);
-	spi_disable(SPI);
-	spi_reset(SPI);
-	spi_set_master_mode(SPI);
-	spi_disable_mode_fault_detect(SPI);
-	spi_disable_loopback(SPI);
-	spi_set_peripheral_chip_select_value(SPI, SPI_CHIP_PCS);
-	spi_set_clock_polarity(SPI, SPI_CHIP_SEL, SPI_CLK_POLARITY);
-	spi_set_clock_phase(SPI, SPI_CHIP_SEL, SPI_CLK_PHASE);
-	spi_set_bits_per_transfer(SPI, SPI_CHIP_SEL,SPI_CSR_BITS_8_BIT);
-	spi_set_baudrate_div(SPI, SPI_CHIP_SEL,	(sysclk_get_peripheral_hz()/ gs_ul_spi_clock));
-	spi_set_transfer_delay(SPI, SPI_CHIP_SEL, SPI_DLYBS,SPI_DLYBCT);
-	spi_enable(SPI);
-
-	uint8_t spi_buffer[1]={0x0A};
-
-
-///////////////////////////////////////////////////
 
     enum adc_channel_num_t adc_chans[2] = {ADC_CHANNEL_3,ADC_CHANNEL_9};
     scope_initialize(adc_chans, 2);
@@ -270,8 +189,6 @@ int main(void)
         pio_toggle_pin(PIO_PA7_IDX);
 
         for(uint16_t i = 0; i < 65535; ++i) __NOP;
-
-        spi_master_transfer(spi_buffer,1);
 
         scope_draw();
     }

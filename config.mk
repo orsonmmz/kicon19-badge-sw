@@ -60,6 +60,7 @@ CSRCS = \
        usb_handlers.c \
        lcd.c \
        scope.c \
+       spi_master.c \
        gfx.c \
        menu.c \
        menu_struct.c \

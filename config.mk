@@ -47,8 +47,8 @@ PART = sam4sd16b
 
 # Application target name. Given with suffix .a for library and .elf for a
 # standalone application.
-TARGET_FLASH = sam4s_hello_flash.elf
-TARGET_SRAM = sam4s_hello_sram.elf
+TARGET_FLASH = kicon_badge_flash.elf
+TARGET_SRAM = kicon_badge_sram.elf
 
 # List of C source files.
 CSRCS = \

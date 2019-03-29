@@ -19,6 +19,9 @@
 
 #include "lcd.h"
 #include "scope.h"
+#include "buttons.h"
+#include "apps_list.h"
+#include "settings_list.h"
 
 #include <sysclk.h>
 #include <twi.h>
@@ -291,4 +294,35 @@ void ADC_Handler(void)
 		/* Start new pdc transfer */
 		adc_read_buffer(ADC, us_value, adc_buffer_size);
 	}
+}
+
+
+void app_scope_func(void)
+{
+    int chan_count = 0;
+    enum adc_channel_num_t adc_chans[2];
+
+    switch (menu_scope_channels.val) {
+        case 0: // channel 1
+            chan_count = 1;
+            adc_chans[0] = ADC_CHANNEL_3;
+            break;
+        case 1: // channel 2
+            chan_count = 1;
+            adc_chans[0] = ADC_CHANNEL_9;
+            break;
+        case 2: // channel 1&2
+            chan_count = 2;
+            adc_chans[0] = ADC_CHANNEL_3;
+            adc_chans[1] = ADC_CHANNEL_9;
+            break;
+    }
+
+    scope_initialize(adc_chans, chan_count);
+
+    while(btn_state() != BUT_LEFT) {
+        scope_draw();
+    }
+
+    while(btn_state());    // wait for the button release
 }

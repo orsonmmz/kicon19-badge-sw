@@ -92,8 +92,6 @@ menu_list_t menu_scope_channels = {
 
 // TODO timebase
 // TODO trigger
-//
-void app_scope_func(void) {}
 application_t app_scope = { "RUN", app_scope_func };
 
 menu_list_t menu_scope = {

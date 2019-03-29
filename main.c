@@ -153,9 +153,6 @@ int main(void)
 
     uart_write(UART0, 'U'); // TODO remove
 
-    enum adc_channel_num_t adc_chans[2] = {ADC_CHANNEL_3,ADC_CHANNEL_9};
-    scope_initialize(adc_chans, 2);
-
     SSD1306_drawBitmap(0, 0, kicon_logo, 128, 32);
     SSD1306_drawBufferDMA();
     SSD1306_setString(20, 7, "press a button", 14, WHITE);
@@ -187,9 +184,5 @@ int main(void)
 
         la_run();
         pio_toggle_pin(PIO_PA7_IDX);
-
-        for(uint16_t i = 0; i < 65535; ++i) __NOP;
-
-        scope_draw();
     }
 }

@@ -55,7 +55,7 @@ void cmd_response(const uint8_t* buf, unsigned int len)
 }
 
 
-static inline void cmd_set_resp_status(uint8_t *buf, uint8_t response)
+void cmd_set_resp_status(uint8_t *buf, uint8_t response)
 {
     buf[0] = 1;    /* response length */
     buf[1] = response;

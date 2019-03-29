@@ -20,8 +20,14 @@
 #ifndef COMMAND_HANDLERS_H
 #define COMMAND_HANDLERS_H
 
+#include <stdint.h>
+#include "commands_def.h"
+
 /* Function that should be used by the command handlers to return a response */
 void cmd_response(const uint8_t* buf, unsigned int len);
+
+/* Sets a status for a response */
+void cmd_set_resp_status(uint8_t *buf, uint8_t response);
 
 /* Logic analyzer SUMP protocol handler */
 int cmd_sump(const uint8_t* cmd, unsigned int len);

@@ -35,7 +35,6 @@
 #define COMMANDS_H
 
 #include <stdint.h>
-#include "commands_def.h"
 
 typedef enum { CMD_MULTIPROTOCOL, CMD_SUMP } cmd_mode_t;
 

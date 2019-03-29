@@ -30,12 +30,6 @@
 #define MENU_ENTRY_HEIGHT   8
 #define MENU_ENTRY_COUNT    (LCD_HEIGHT / MENU_ENTRY_HEIGHT)
 
-#define BUT_UP      BUT4
-#define BUT_DOWN    BUT3
-#define BUT_LEFT    BUT2
-#define BUT_RIGHT   BUT1
-
-
 static menu_list_t *menu_current = &main_menu;
 
 #define MENU_STACK_DEPTH    8

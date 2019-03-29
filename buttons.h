@@ -27,6 +27,11 @@ typedef enum {
     BUT4 = 0x08
 } button_t;
 
+#define BUT_UP      BUT4
+#define BUT_DOWN    BUT3
+#define BUT_LEFT    BUT2
+#define BUT_RIGHT   BUT1
+
 void btn_init(void);
 int btn_state(void);
 int btn_is_pressed(button_t button);

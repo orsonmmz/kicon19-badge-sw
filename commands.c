@@ -190,16 +190,3 @@ cmd_mode_t cmd_get_mode(void)
 {
     return cmd_mode;
 }
-
-
-// TODO move
-#include "uart.h"
-void cmd_uart(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out)
-{
-    for (unsigned int i = 0; i < input_len; ++i) {
-        while(!uart_is_tx_buf_empty(UART0));
-        uart_write(UART0, data_in[i]);
-    }
-
-    cmd_set_resp_status(data_out, CMD_RESP_OK);
-}

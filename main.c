@@ -9,6 +9,7 @@
 #include "gfx.h"
 #include "SSD1306_commands.h"
 #include "scope.h"
+#include "serial.h"
 #include "menu.h"
 
 
@@ -77,18 +78,6 @@ static void configure_tc(uint32_t freq)
     tc_start(TC0, 0);
 }
 
-static void configure_console(void)
-{
-    sam_uart_opt_t uart_settings;
-    uart_settings.ul_mck = sysclk_get_peripheral_hz();
-    uart_settings.ul_baudrate = 115200Ul;
-    uart_settings.ul_mode = UART_MR_PAR_NO;
-
-    pio_configure(PIOA, PIO_PERIPH_A, (PIO_PA9A_URXD0 | PIO_PA10A_UTXD0), PIO_DEFAULT);
-    sysclk_enable_peripheral_clock(ID_UART0);
-    uart_init(UART0, &uart_settings);
-}
-
 /**
  * \brief Configure timer ISR to fire regularly.
  */
@@ -125,7 +114,7 @@ static void init_system(void)
     configure_tc(DEFAULT_LED_FREQ);
 
     /* Enable the serial console */
-    configure_console();
+    serial_init(115200);
 
     btn_init();
     SSD1306_init();
@@ -150,8 +139,6 @@ int main(void)
 
     /* Configure timer ISR to fire regularly */
     init_timer_isr();
-
-    uart_write(UART0, 'U'); // TODO remove
 
     SSD1306_drawBitmap(0, 0, kicon_logo, 128, 32);
     SSD1306_drawBufferDMA();

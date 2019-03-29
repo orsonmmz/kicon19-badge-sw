@@ -62,6 +62,7 @@ CSRCS = \
        scope.c \
        spi_master.c \
        gfx.c \
+       serial.c \
        menu.c \
        menu_struct.c \
        common/services/clock/sam4s/sysclk.c               \

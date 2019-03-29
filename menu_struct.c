@@ -108,7 +108,6 @@ void app_python_func(void) {}
 application_t app_python = { "Python interface", app_python_func };
 
 
-void app_uart_func(void) {}
 application_t app_uart = { "RUN", app_uart_func };
 
 menu_list_t menu_uart_baud = {
@@ -122,7 +121,7 @@ menu_list_t menu_uart_baud = {
 };
 
 menu_list_t menu_uart = {
-    "UART adapter", 0,
+    "USB-UART adapter", 0,
     {
         { APP,      { .app     = &app_uart } },
         { SUBMENU,  { .submenu = &menu_uart_baud } },

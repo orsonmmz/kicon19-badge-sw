@@ -143,13 +143,21 @@ void menu(void) {
     while (btn_state() != 0);
 
     if (buttons & BUT_UP) {
-        if (selection > 0)
-            --selection;
+        if (selection == 0) {
+            // move *past* last menu entry (so it will be decremented later)
+            selection = 0;
+            while (menu_current->entries[selection].type != END) ++selection;
+        }
+
+        --selection;
     }
 
     else if (buttons & BUT_DOWN) {
-        if (menu_current->entries[selection + 1].type != END)
+        if (menu_current->entries[selection + 1].type == END) {
+            selection = 0;
+        } else {
             ++selection;
+        }
     }
 
     else if (buttons & BUT_RIGHT) {

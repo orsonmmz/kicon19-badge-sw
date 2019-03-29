@@ -24,8 +24,7 @@
  */
 
 #include "menu_struct.h"
-//#include "app_list.h"
-/*#include "settings/settings.h"*/  // TODO
+#include "apps_list.h"
 #include <stddef.h>
 
 int get_menu_size(const menu_list_t *menu) {

@@ -42,6 +42,19 @@ void app_la_usb_func(void);
 application_t app_la_usb = { "Logic analyzer (USB)", app_la_usb_func };
 
 
+menu_list_t menu_la_lcd_sampling_freq = {
+    "Sampling frequency", 2, {
+        { SETTING,  { .setting = "50 MHz" } },
+        { SETTING,  { .setting = "20 MHz" } },
+        { SETTING,  { .setting = "10 MHz" } },
+        { SETTING,  { .setting = "5 MHz" } },
+        { SETTING,  { .setting = "2 MHz" } },
+        { SETTING,  { .setting = "1 MHz" } },
+        { SETTING,  { .setting = "500 kHz" } },
+        { END,      { NULL } }
+    }
+};
+
 menu_list_t menu_la_lcd_trigger_input = {
     "Trigger input", 0, {
         { SETTING,  { .setting = "Free run" } },
@@ -57,25 +70,24 @@ menu_list_t menu_la_lcd_trigger_input = {
     }
 };
 
-menu_list_t menu_la_lcd_trigger_edge = {
-    "Trigger edge", 0,
+menu_list_t menu_la_lcd_trigger_level = {
+    "Trigger level", 1,
     {
-        { SETTING,  { .setting = "Rising" } },
-        { SETTING,  { .setting = "Falling" } },
-        { SETTING,  { .setting = "Any" } },
+        { SETTING,  { .setting = "Low" } },
+        { SETTING,  { .setting = "High" } },
         { END,      { NULL } }
     }
 };
 
-void app_la_lcd_func(void);
 application_t app_la_lcd = { "RUN", app_la_lcd_func };
 
 menu_list_t menu_la_lcd = {
     "Logic analyzer (LCD)", 0,
     {
         { APP,       { .app     = &app_la_lcd } },
+        { SUBMENU,   { .submenu = &menu_la_lcd_sampling_freq } },
         { SUBMENU,   { .submenu = &menu_la_lcd_trigger_input } },
-        { SUBMENU,   { .submenu = &menu_la_lcd_trigger_edge } },
+        { SUBMENU,   { .submenu = &menu_la_lcd_trigger_level } },
         { END,      { NULL } }
     }
 };

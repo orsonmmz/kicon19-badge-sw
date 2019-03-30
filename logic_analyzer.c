@@ -25,12 +25,14 @@
 #include "commands.h"
 #include "command_handlers.h"
 #include "sump.h"
+#include "apps_list.h"
+#include "settings_list.h"
 #include <string.h>
 #include <limits.h>
 
 // Samples buffer
-#define MAX_LA_BUF_SIZE     65536
-static uint8_t la_buffer[MAX_LA_BUF_SIZE];
+#define LA_MAX_ACQ_SIZE     32768
+static uint8_t la_buffer[2*LA_MAX_ACQ_SIZE];
 static uint32_t la_acq_size;
 static uint8_t la_chan_enabled;
 static la_target_t la_target = LA_NONE;
@@ -85,7 +87,7 @@ static uint32_t la_find_trigger(void) {
 
 
 void la_init(void) {
-    la_acq_size = MAX_LA_BUF_SIZE;
+    la_acq_size = LA_MAX_ACQ_SIZE;
     la_chan_enabled = 0xFF;
     ioc_set_clock(F1MHZ);
     ioc_set_handler(la_acq_finished, la_buffer);
@@ -146,7 +148,7 @@ static void la_display_acq(uint32_t offset) {
 
     // Display the acquisition on the LCD
     for(int chan = 0; chan < LA_CHANNELS; ++chan) {
-        uint8_t* buf_ptr = la_buffer;
+        uint8_t* buf_ptr = &la_buffer[offset];
         chan_mask = (1 << chan);
 
         if ((la_chan_enabled & chan_mask) == 0)
@@ -191,8 +193,16 @@ static void la_acq_finished(void* param) {
     }
 
     switch (la_target) {
-        case LA_LCD: la_display_acq(offset); break;
-        case LA_USB: la_usb_send_acq(offset); break;
+        case LA_LCD:
+            /* keep retriggering */
+            la_retrigger = 1;
+            la_display_acq(offset);
+            break;
+
+        case LA_USB:
+            la_usb_send_acq(offset);
+            break;
+
         case LA_NONE: break;    // mute warnings
     }
 }
@@ -242,7 +252,7 @@ static const uint8_t SUMP_METADATA_RESP[] =
 //  token  value
     "\x01" "KiCon-Badge\x00"   // device name
     "\x20" "\x00\x00\x00\x08"  // number of channels
-    "\x21" "\x00\x00\xff\xff"  // sample memory available [bytes] = 65535
+    "\x21" "\x00\x00\x80\x00"  // sample memory available [bytes] = 32768
     "\x23" "\x02\xfa\xf0\x80"  // maximum sampling rate [Hz] = 50 MHz
     "\x24" "\x00\x00\x00\x00"  // protocol version
     ;
@@ -333,12 +343,33 @@ void app_la_usb_func(void) {
 
 void app_la_lcd_func(void) {
     la_set_target(LA_LCD);
-    // TODO configure triggers
 
-    la_trigger();
-    while(btn_state() != BUT2) {    // TODO BUT_LEFT
-
-        //la_trigger();
+    // configure the logic analyzer
+    switch (menu_la_lcd_sampling_freq.val) {
+        case 0: ioc_set_clock(F50MHZ); break;
+        case 1: ioc_set_clock(F20MHZ); break;
+        case 2: ioc_set_clock(F10MHZ); break;
+        case 3: ioc_set_clock(F5MHZ); break;
+        case 4: ioc_set_clock(F2MHZ); break;
+        case 5: ioc_set_clock(F1MHZ); break;
+        case 6: ioc_set_clock(F500KHZ); break;
     }
-    while(!btn_state());
+
+    if (menu_la_lcd_trigger_input.val == 0) {
+        /* no trigger input -> free-running mode */
+        la_trigger_mask = 0;
+    } else {
+        la_trigger_mask = (1 << (menu_la_lcd_trigger_input.val - 1));
+    }
+
+    la_trigger_val = menu_la_lcd_trigger_level.val ? la_trigger_mask : 0;
+
+    // start acquisition
+    la_trigger();
+
+    while(btn_state() != BUT_LEFT) {
+        la_run();
+    }
+
+    while(btn_state());    // wait for the button release
 }

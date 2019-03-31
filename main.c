@@ -137,12 +137,8 @@ static void init_system(void)
 
     btn_init();
     SSD1306_init();
-
     ioc_init();
     la_init();
-    la_set_target(LA_USB);
-
-    /* Start USB stack to authorize VBus monitoring */
     udc_start();
 }
 

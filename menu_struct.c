@@ -38,7 +38,6 @@ int get_menu_size(const menu_list_t *menu) {
 }
 
 
-void app_la_usb_func(void);
 application_t app_la_usb = { "Logic analyzer (USB)", app_la_usb_func };
 
 

@@ -19,6 +19,7 @@
  */
 
 #include "i2c.h"
+#include "lcd.h"
 #include "command_handlers.h"
 
 #include <twi.h>
@@ -36,4 +37,49 @@ void twi_init(void) {
     pmc_enable_periph_clk(ID_TWI0);
 
     twi_master_init(TWI0, &opt);
+}
+
+
+void cmd_i2c(const uint8_t* data_in, unsigned int input_len) {
+    uint32_t status = TWI_ERROR_TIMEOUT;
+    twi_packet_t packet;
+    const uint8_t* ptr = &data_in[1];
+
+    packet.chip = *ptr++;
+    packet.addr_length = *ptr++;
+
+    if (packet.addr_length > 4) {
+        cmd_resp_init(CMD_RESP_INVALID_CMD); return;
+    }
+
+    for (uint8_t i = 0; i < packet.addr_length; ++i) {
+        packet.addr[i] = *ptr++;
+    }
+
+    packet.length = *ptr++;
+    packet.buffer = (uint8_t*) ptr; /* discarding const qualifier */
+
+    while(SSD1306_isBusy());    // TODO better synchronization
+
+    switch (data_in[0]) {
+        case CMD_I2C_READ:
+            status = twi_master_read(TWI0, &packet);
+            break;
+
+        case CMD_I2C_WRITE:
+            status = twi_master_write(TWI0, &packet);
+            break;
+
+        default: cmd_resp_init(CMD_RESP_INVALID_CMD); return;
+    }
+
+    if (status == TWI_SUCCESS) {
+        cmd_resp_init(CMD_RESP_OK);
+
+        if (data_in[0] == CMD_I2C_READ) {
+            cmd_resp_writen(packet.buffer, packet.length);
+        }
+    } else {
+        cmd_resp_init(CMD_RESP_EXEC_ERR);
+    }
 }

@@ -9,7 +9,7 @@
   #define DEF_ENUM(x,y) x = y,
 #endif
 
-START_ENUM(CMD_TYPE)
+START_ENUM(cmd_type_t)
 DEF_ENUM(CMD_TYPE_RESET,    0)
 DEF_ENUM(CMD_TYPE_UART,     1)
 DEF_ENUM(CMD_TYPE_I2C,      2)
@@ -20,13 +20,13 @@ DEF_ENUM(CMD_TYPE_LCD,      6)
 DEF_ENUM(CMD_TYPE_BTN,      7)
 DEF_ENUM(CMD_TYPE_ADC,      8)
 DEF_ENUM(CMD_TYPE_DAC,      9)
-END_ENUM(CMD_TYPE)
+END_ENUM(cmd_type_t)
 
-START_ENUM(CMD_RESP)
+START_ENUM(cmd_resp_t)
 DEF_ENUM(CMD_RESP_NULL,         0)  /* no action, command is incomplete */
 DEF_ENUM(CMD_RESP_RESET,        1)  /* command buffer reset */
 DEF_ENUM(CMD_RESP_OK,           2)  /* command executed succesfully */
 DEF_ENUM(CMD_RESP_INVALID_CMD,  3)  /* invalid command */
 DEF_ENUM(CMD_RESP_OVERFLOW,     4)  /* command buffer overflown */
 DEF_ENUM(CMD_RESP_CRC_ERR,      5)  /* incorrect CRC */
-END_ENUM(CMD_RESP)
+END_ENUM(cmd_resp_t)

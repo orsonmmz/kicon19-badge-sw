@@ -26,20 +26,22 @@
 /* Function that should be used by the command handlers to return a response */
 void cmd_response(const uint8_t* buf, unsigned int len);
 
-/* Sets a status for a response */
-void cmd_set_resp_status(uint8_t *buf, uint8_t response);
+/* Starts a response to a command */
+void cmd_resp_init(cmd_resp_t status);
+
+/* Writes data to the response buffer */
+void cmd_resp_write(uint8_t data);
+void cmd_resp_writen(const uint8_t *data, unsigned int len);
 
 /* Logic analyzer SUMP protocol handler */
 int cmd_sump(const uint8_t* cmd, unsigned int len);
 
-void cmd_uart(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);
-/*void cmd_i2c(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_spi(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_pio(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_led(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_lcd(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_btn(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_adc(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
-/*void cmd_dac(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out);*/
+void cmd_uart(const uint8_t* data_in, unsigned int input_len);
+/*void cmd_i2c(const uint8_t* data_in, unsigned int input_len);*/
+/*void cmd_spi(const uint8_t* data_in, unsigned int input_len);*/
+/*void cmd_pio(const uint8_t* data_in, unsigned int input_len);*/
+/*void cmd_lcd(const uint8_t* data_in, unsigned int input_len);*/
+/*void cmd_adc(const uint8_t* data_in, unsigned int input_len);*/
+/*void cmd_dac(const uint8_t* data_in, unsigned int input_len);*/
 
 #endif /* COMMAND_HANDLERS_H */

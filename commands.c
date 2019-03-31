@@ -20,6 +20,7 @@
 #include "commands.h"
 #include "command_handlers.h"
 #include <stddef.h>
+#include <string.h>
 
 static uint8_t cmd_overflow = 0;
 static cmd_mode_t cmd_mode = CMD_MULTIPROTOCOL;
@@ -55,10 +56,24 @@ void cmd_response(const uint8_t* buf, unsigned int len)
 }
 
 
-void cmd_set_resp_status(uint8_t *buf, uint8_t response)
+void cmd_resp_init(cmd_resp_t response)
 {
-    buf[0] = 1;    /* response length */
-    buf[1] = response;
+    cmd_resp_buf[0] = 1;    /* response length */
+    cmd_resp_buf[1] = response;
+}
+
+
+void cmd_resp_write(uint8_t data)
+{
+    ++cmd_resp_buf[0];       /* response length */
+    cmd_resp_buf[cmd_resp_buf[0]] = data;
+}
+
+
+void cmd_resp_writen(const uint8_t *data, unsigned int len)
+{
+    memcpy(&cmd_resp_buf[cmd_resp_buf[0] + 1], data, len);
+    cmd_resp_buf[0] += len;
 }
 
 
@@ -103,12 +118,12 @@ static int cmd_execute_normal(void)
 
     /* Check for overflows */
     if (cmd_overflow) {
-        cmd_set_resp_status(cmd_resp_buf, CMD_RESP_OVERFLOW);
+        cmd_resp_init(CMD_RESP_OVERFLOW);
     }
 
     /* Handle reset request */
     else if (cmd_buf_idx == 1 && cmd_len == CMD_TYPE_RESET) {
-        cmd_set_resp_status(cmd_resp_buf, CMD_RESP_RESET);
+        cmd_resp_init(CMD_RESP_RESET);
     }
 
     /* Is the command complete? (+2 stands for the cmd_len and crc fields) */
@@ -118,21 +133,22 @@ static int cmd_execute_normal(void)
 
     else {
         if (!cmd_valid_crc()) {
-            cmd_buf_reset();
-            cmd_set_resp_status(cmd_resp_buf, CMD_RESP_CRC_ERR);
+            cmd_resp_init(CMD_RESP_CRC_ERR);
 
         } else {
+            cmd_resp_buf[0] = 0;    /* reset response length */
+
             /* Handle usual commands */
             switch(cmd_buf[1]) {
                 case CMD_TYPE_UART:
-                    cmd_uart(&cmd_buf[2], cmd_len - 1, cmd_resp_buf);
+                    cmd_uart(&cmd_buf[2], cmd_len - 1);
                     break;
+
 
                 default:
-                    cmd_set_resp_status(cmd_resp_buf, CMD_RESP_INVALID_CMD);
+                    cmd_resp_init(CMD_RESP_INVALID_CMD);
                     break;
             }
-
         }
     }
 
@@ -144,7 +160,7 @@ static int cmd_execute_normal(void)
 }
 
 
-int cmd_try_execute()
+int cmd_try_execute(void)
 {
     int ret = 0;
 
@@ -183,6 +199,7 @@ void cmd_resp_processed(void)
 void cmd_set_mode(cmd_mode_t mode)
 {
     cmd_mode = mode;
+    cmd_buf_reset();
 }
 
 

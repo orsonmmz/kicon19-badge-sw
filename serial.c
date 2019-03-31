@@ -63,13 +63,13 @@ void serial_putsn(const char *str, unsigned int count) {
 }
 
 
-void cmd_uart(const uint8_t* data_in, unsigned int input_len, uint8_t *data_out) {
+void cmd_uart(const uint8_t* data_in, unsigned int input_len) {
     for (unsigned int i = 0; i < input_len; ++i) {
         while(!uart_is_tx_buf_empty(UART0));
         uart_write(UART0, data_in[i]);
     }
 
-    cmd_set_resp_status(data_out, CMD_RESP_OK);
+    cmd_resp_init(CMD_RESP_OK);
 }
 
 

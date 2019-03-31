@@ -46,3 +46,9 @@ START_ENUM(cmd_spi_t)
 DEF_ENUM(CMD_SPI_CONFIG,        0)  /* params: clock speed (2 bytes; kHz), SPI mode */
 DEF_ENUM(CMD_SPI_TRANSFER,      1)  /* params: byte count, data */
 END_ENUM(cmd_spi_t)
+
+START_ENUM(cmd_lcd_t)
+DEF_ENUM(CMD_LCD_CLEAR,         0)
+DEF_ENUM(CMD_LCD_PIXEL,         1)  /* params: x, y, color */
+DEF_ENUM(CMD_LCD_TEXT,          2)  /* params: row, col, byte count, text */
+END_ENUM(cmd_lcd_t)

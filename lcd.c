@@ -25,6 +25,7 @@
 #include <twi.h>
 #include <pio.h>
 
+#include "command_handlers.h"
 #include "io_conf.h"
 #include "SSD1306_commands.h"
 #include "fonts.h"
@@ -353,7 +354,7 @@ void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex,  uint8_t *buffer, int size)
  * pageIndex - coordinates in verical plane - index of page
  * color - value
  */
-void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size)
+void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex, uint8_t color, int size)
 {
 	// check if within bounds
 	if ((pageIndex >= LCD_PAGES) || (x >= LCD_WIDTH)) return;
@@ -554,4 +555,30 @@ void TWI0_Handler(void)
 		busy = 0;
 		dma_transfers = 0;
 	}
+}
+
+
+void cmd_lcd(const uint8_t* data_in, unsigned int input_len)
+{
+    cmd_resp_init(CMD_RESP_OK);
+
+    switch (data_in[0]) {
+        case CMD_LCD_CLEAR:
+            SSD1306_clearBufferFull();
+            break;
+
+        case CMD_LCD_PIXEL:
+            SSD1306_setPixel(data_in[1], data_in[2], data_in[3]);
+            break;
+
+        case CMD_LCD_TEXT:
+            SSD1306_setString(data_in[1] * 6, data_in[2],
+                    (const char*)&data_in[4], data_in[3], WHITE);
+            break;
+
+        default: cmd_resp_init(CMD_RESP_INVALID_CMD); return;
+    }
+
+    while (SSD1306_isBusy());
+    SSD1306_drawBufferDMA();
 }

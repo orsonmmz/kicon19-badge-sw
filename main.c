@@ -149,11 +149,6 @@ static void init_system(void)
 
 int main(void)
 {
-    const uint8_t *cmd_resp;
-    unsigned int cmd_resp_len;
-    int cmd_processed;
-
-    /* Initialize the SAM system */
     init_system();
 
     /* Configure timer ISR to fire regularly */
@@ -163,32 +158,9 @@ int main(void)
     SSD1306_drawBufferDMA();
     SSD1306_setString(20, 7, "press a button", 14, WHITE);
 
-    // TODO remove
-    cmd_set_mode(CMD_SUMP);
-
     //while(!btn_state()); // wait for a button press   // TODO uncomment
 
     while(1) {
         menu();
-    }
-
-    /* Loop forever */
-    for (;;) {
-        if (udi_cdc_is_rx_ready()) {
-            cmd_new_data(udi_cdc_getc());
-            cmd_processed = cmd_try_execute();
-
-            if (cmd_processed) {
-                cmd_get_resp(&cmd_resp, &cmd_resp_len);
-
-                if(cmd_resp && cmd_resp_len > 0) {
-                    udi_cdc_write_buf(cmd_resp, cmd_resp_len);
-                    cmd_resp_processed();
-                }
-            }
-        }
-
-        la_run();
-        pio_toggle_pin(PIO_PA7_IDX);
     }
 }

@@ -116,8 +116,7 @@ menu_list_t menu_scope = {
 };
 
 
-void app_python_func(void) {}
-application_t app_python = { "Python interface", app_python_func };
+application_t app_command = { "Command interface", app_command_func };
 
 
 application_t app_uart = { "RUN", app_uart_func };
@@ -147,7 +146,7 @@ menu_list_t main_menu = {
        { APP,       { .app     = &app_la_usb } },
        { SUBMENU,   { .submenu = &menu_la_lcd } },
        { SUBMENU,   { .submenu = &menu_scope } },
-       { APP,       { .app     = &app_python } },
+       { APP,       { .app     = &app_command } },
        { SUBMENU,   { .submenu = &menu_uart } },
        { END,       { NULL } }
     }

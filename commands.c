@@ -19,6 +19,12 @@
 
 #include "commands.h"
 #include "command_handlers.h"
+
+#include "apps_list.h"
+#include "buttons.h"
+#include "udi_cdc.h"
+#include "lcd.h"
+
 #include <stddef.h>
 #include <string.h>
 
@@ -206,4 +212,37 @@ void cmd_set_mode(cmd_mode_t mode)
 cmd_mode_t cmd_get_mode(void)
 {
     return cmd_mode;
+}
+
+
+void app_command_func(void)
+{
+    const uint8_t *resp;
+    unsigned int resp_len;
+    int processed;
+
+    cmd_set_mode(CMD_MULTIPROTOCOL);
+
+    while(SSD1306_isBusy());
+    SSD1306_clearBufferFull();
+    SSD1306_setString(10, 3, "Command interface", 17, WHITE);
+    SSD1306_drawBufferDMA();
+
+    while(btn_state() != BUT_LEFT) {
+        if (udi_cdc_is_rx_ready()) {
+            cmd_new_data(udi_cdc_getc());
+            processed = cmd_try_execute();
+
+            if (processed) {
+                cmd_get_resp(&resp, &resp_len);
+
+                if(resp && resp_len > 0) {
+                    udi_cdc_write_buf(resp, resp_len);
+                    cmd_resp_processed();
+                }
+            }
+        }
+    }
+
+    while(btn_state());    /* wait for the button release */
 }

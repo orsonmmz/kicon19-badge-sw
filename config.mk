@@ -63,6 +63,7 @@ CSRCS = \
        scope.c \
        spi_master.c \
        gfx.c \
+       i2c.c \
        serial.c \
        menu.c \
        menu_struct.c \

@@ -19,6 +19,7 @@
  */
 
 #include "lcd.h"
+#include "i2c.h"
 
 #include <sysclk.h>
 #include <twi.h>
@@ -101,9 +102,7 @@ static void SSD1306_write(const uint8_t *buffer,int size, control_byte ctrl_b, i
     twi_packet_t packet_tx;
 
     packet_tx.chip        = SSD1306_address;
-
-    packet_tx.addr[0] = (uint8_t) ctrl_b;
-
+    packet_tx.addr[0]     = (uint8_t) ctrl_b;
     packet_tx.addr_length = 1;
     packet_tx.buffer      = (uint8_t *) buffer;
     packet_tx.length      = size;
@@ -165,19 +164,9 @@ void SSD1306_init(void)
 //		SSD1306_DISPLAYALLON 				// clear all
 	};
 
-	//init twi
-    twi_options_t opt;
-    opt.master_clk = sysclk_get_peripheral_hz();
-    opt.speed      = 200000;    // TODO
+	twi_init();
 
-    pio_configure(PIOA, PIO_PERIPH_A,
-            (PIO_PA3A_TWD0 | PIO_PA4A_TWCK0), PIO_OPENDRAIN | PIO_PULLUP);
-    sysclk_enable_peripheral_clock(ID_TWI0);
-    pmc_enable_periph_clk(ID_TWI0);
-
-    twi_master_init(TWI0, &opt);
-
-    /* Configure TWI interrupts */
+	/* Configure TWI interrupts */
 	NVIC_DisableIRQ(TWI0_IRQn);
 	NVIC_ClearPendingIRQ(TWI0_IRQn);
 	NVIC_SetPriority(TWI0_IRQn, 0);
@@ -186,13 +175,8 @@ void SSD1306_init(void)
 	/* Get pointer to TWI master PDC register base */
 	g_p_twim_pdc = twi_get_pdc_base(TWI0);
 
-    // TODO twi_probe?
-
-    //init buffer
-	uint16_t i;
-
 	//init displayBuffer to all on
-	for (i=0; i<LCD_WIDTH*LCD_PAGES; i++)
+	for (uint16_t i=0; i<LCD_WIDTH*LCD_PAGES; i++)
 	{
 		displayBuffer[i]=0x00;
 	}
@@ -570,4 +554,3 @@ void TWI0_Handler(void)
 		dma_transfers = 0;
 	}
 }
-

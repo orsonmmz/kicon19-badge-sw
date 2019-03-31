@@ -21,4 +21,4 @@ from kicon_badge import KiconBadge
 
 badge = KiconBadge('/dev/ttyACM0')
 badge.reset()
-badge.uart_send('badge test')
+badge.uart_send(bytes('badge test', 'ascii'))

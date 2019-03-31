@@ -46,19 +46,31 @@ class KiconBadge:
         return struct.pack('>BBB', 1, resp, self._crc(resp))
 
     def _make_cmd(self, cmd, data=None):
-        if data:
-            data_bytes = bytes('%c%s' % (cmd, data), 'ascii')
+        if data != None:
+            data_bytes = struct.pack('>B%ds' % len(data), cmd, data)
             data_len = len(data_bytes)
             return struct.pack('>B%dsB' % data_len,    # struct format
                     data_len, data_bytes, self._crc(data_bytes))
         else:
             return struct.pack('>BBB', 1, cmd, self._crc(cmd))
 
-    def _check_resp(self):
-        expected_resp = self._make_resp(cmd_defs.CMD_RESP_OK)
-        actual_resp = self._serial.read(len(expected_resp))
-        if expected_resp != actual_resp:
-            raise Exception('Error! Response: %s' % str(binascii.hexlify(actual_resp), 'ascii'))
+    def _get_resp(self):
+        resp_len = self._serial.read(1)[0]
+        resp_data = self._serial.read(resp_len + 1) # +1 for CRC
+        resp_type = resp_data[0]
+        resp_crc = resp_data[-1]
+        calc_crc = self._crc(resp_data[:-1])
+        raw_data = resp_data[1:-1]      # strip command response type and CRC
+
+        if resp_crc != calc_crc:
+            raise Exception('CRC error (expected 0x%x, got 0x%x)'
+                    % (calc_crc, resp_crc))
+
+        if resp_type != cmd_defs.CMD_RESP_OK:
+            raise Exception('Response != OK: code = 0x%.2x, data = "%s"'
+                    % (resp_type, str(binascii.hexlify(raw_data), 'ascii')))
+
+        return raw_data
 
     def reset(self):
         # special command type, cannot be created with make_cmd
@@ -81,4 +93,4 @@ class KiconBadge:
     def uart_send(self, data):
         uart_cmd = self._make_cmd(cmd_defs.CMD_TYPE_UART, data)
         self._serial.write(uart_cmd)
-        self._check_resp()
+        self._get_resp()

@@ -90,7 +90,7 @@ class KiconBadge:
             if trials == 256:
                 raise Exception('No response after reset')
 
-    def uart_send(self, data):
-        uart_cmd = self._make_cmd(cmd_defs.CMD_TYPE_UART, data)
-        self._serial.write(uart_cmd)
-        self._get_resp()
+    def uart_transfer(self, data):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_UART, data)
+        self._serial.write(cmd)
+        return self._get_resp()

@@ -19,6 +19,7 @@
 
 #include "asf.h"
 #include "buttons.h"
+#include "command_handlers.h"
 
 //#define BUTTON_ENABLE_INT
 
@@ -37,6 +38,7 @@
 
 void btn_init(void)
 {
+    pmc_enable_periph_clk(ID_PIOA);
     pio_configure_pin(BUT1_IDX, BUTTON_PIO_ATTR);
     pio_configure_pin(BUT2_IDX, BUTTON_PIO_ATTR);
     pio_configure_pin(BUT3_IDX, BUTTON_PIO_ATTR);
@@ -72,4 +74,12 @@ int btn_is_pressed(button_t button)
     }
 
     return 0;
+}
+
+
+void cmd_btn(const uint8_t* data_in, unsigned int input_len) {
+    (void) data_in;
+    (void) input_len;
+    cmd_resp_init(CMD_RESP_OK);
+    cmd_resp_write(btn_state());
 }

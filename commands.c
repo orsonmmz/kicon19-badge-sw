@@ -150,6 +150,9 @@ static int cmd_execute_normal(void)
                     cmd_uart(&cmd_buf[2], cmd_len - 1);
                     break;
 
+                case CMD_TYPE_BTN:
+                    cmd_btn(&cmd_buf[2], cmd_len - 1);
+                    break;
 
                 default:
                     cmd_resp_init(CMD_RESP_INVALID_CMD);

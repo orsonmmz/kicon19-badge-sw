@@ -18,29 +18,38 @@
  */
 
 #include "spi_master.h"
-#include "asf.h"
+#include "command_handlers.h"
+#include "io_conf.h"
 
-/* Chip select. */
+#include <spi.h>
+#include <pio.h>
+#include <sysclk.h>
+
+/* Possible chip selects:
+ * PA9 (UART_RX)  -> NPCS1 / peripheral B
+ * PB14 (DAC1)    -> NPCS1 / peripheral A
+ * PA10 (UART_TX) -> NPCS2 / peripheral B
+ * PA3 (I2C_SDA)  -> NPCS3 / peripheral B
+ * PA22 (ADC1)    -> NPCS3 / peripheral B
+ */
+
+/* Chip select (NPCSx)*/
 #define SPI_CHIP_SEL 1
-#define SPI_CHIP_PCS spi_get_pcs(SPI_CHIP_SEL)
 
-/* Clock polarity. */
+/* Clock polarity */
 #define SPI_CLK_POLARITY 0
 
-/* Clock phase. */
+/* Clock phase */
 #define SPI_CLK_PHASE 0
 
-/* Delay before SPCK. */
+/* Delay before SPCK */
 #define SPI_DLYBS 0x40
 
-/* Delay between consecutive transfers. */
+/* Delay between consecutive transfers */
 #define SPI_DLYBCT 0x10
 
 
-/* SPI clock setting (Hz). */
-static uint32_t gs_ul_spi_clock = 500000;
-
-void spi_init(void)
+void spi_init(uint32_t clock, int mode)
 {
     pio_configure(PIOA, PIO_PERIPH_A,
             (PIO_PA12A_MISO | PIO_PA13A_MOSI | PIO_PA14A_SPCK),
@@ -55,25 +64,67 @@ void spi_init(void)
     spi_set_master_mode(SPI);
     spi_disable_mode_fault_detect(SPI);
     spi_disable_loopback(SPI);
-    spi_set_peripheral_chip_select_value(SPI, SPI_CHIP_PCS);
-    spi_set_clock_polarity(SPI, SPI_CHIP_SEL, SPI_CLK_POLARITY);
-    spi_set_clock_phase(SPI, SPI_CHIP_SEL, SPI_CLK_PHASE);
-    spi_set_bits_per_transfer(SPI, SPI_CHIP_SEL,SPI_CSR_BITS_8_BIT);
+
+    switch (mode) {
+        default:
+        case 0:
+            spi_set_clock_polarity(SPI, SPI_CHIP_SEL, 0);
+            spi_set_clock_phase(SPI, SPI_CHIP_SEL, 1);
+            break;
+
+        case 1:
+            spi_set_clock_polarity(SPI, SPI_CHIP_SEL, 0);
+            spi_set_clock_phase(SPI, SPI_CHIP_SEL, 0);
+            break;
+
+        case 2:
+            spi_set_clock_polarity(SPI, SPI_CHIP_SEL, 1);
+            spi_set_clock_phase(SPI, SPI_CHIP_SEL, 1);
+            break;
+
+        case 3:
+            spi_set_clock_polarity(SPI, SPI_CHIP_SEL, 1);
+            spi_set_clock_phase(SPI, SPI_CHIP_SEL, 0);
+            break;
+    }
+
+    spi_set_peripheral_chip_select_value(SPI, spi_get_pcs(SPI_CHIP_SEL));
+    spi_set_bits_per_transfer(SPI, SPI_CHIP_SEL, SPI_CSR_BITS_8_BIT);
     spi_set_baudrate_div(SPI, SPI_CHIP_SEL,
-            (sysclk_get_peripheral_hz() / gs_ul_spi_clock));
+            (sysclk_get_peripheral_hz() / clock));
     spi_set_transfer_delay(SPI, SPI_CHIP_SEL, SPI_DLYBS, SPI_DLYBCT);
     spi_enable(SPI);
 }
 
-void spi_master_transfer(const uint8_t *buf, uint32_t size)
-{
-    uint8_t uc_pcs;
-    static uint16_t data;
 
-    for (int i = 0; i < size; i++) {
-        spi_write(SPI, buf[i], 0, 0);
-        while ((spi_read_status(SPI) & SPI_SR_RDRF) == 0);
-//        spi_read(SPI, &data, &uc_pcs);
-//        p_buffer[i] = data;
+void cmd_spi(const uint8_t* data_in, unsigned int input_len)
+{
+    io_configure(IO_SPI);
+
+    cmd_resp_init(CMD_RESP_OK);
+
+    switch (data_in[0]) {
+        case CMD_SPI_CONFIG: {
+                uint32_t clock = ((uint32_t)(data_in[1]) << 8 | data_in[2]) * 1000;
+                spi_init(clock, data_in[3]);
+            }
+            break;
+
+        case CMD_SPI_TRANSFER: {
+                uint8_t uc_pcs;
+                uint16_t data;
+                const uint8_t* ptr = &data_in[2];
+
+                for (uint8_t i = 0; i < data_in[1]; i++) {
+                        spi_write(SPI, *ptr, 0, i == data_in[1] - 1 ? 0 : 1);
+                        ++ptr;
+                        while ((spi_read_status(SPI) & SPI_SR_RDRF) == 0);
+                        spi_read(SPI, &data, &uc_pcs);
+                        cmd_resp_write(data);
+                }
+            }
+            break;
+
+        default: cmd_resp_init(CMD_RESP_INVALID_CMD); return;
     }
 }

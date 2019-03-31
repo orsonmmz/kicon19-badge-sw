@@ -22,7 +22,15 @@
 
 #include <stdint.h>
 
-void spi_init(void);
-void spi_master_transfer(const uint8_t *buf, uint32_t size);
+/**
+ * Configures the SPI port.
+ * @param clock is the SPI clock frequency [Hz]
+ * @param mode is the SPI port mode:
+ *      0: capture data on rising clock edge, inactive clock low
+ *      1: capture data on falling clock edge, inactive clock low
+ *      2: capture data on falling clock edge, inactive clock high
+ *      3: capture data on rising clock edge, inactive clock high
+ */
+void spi_init(uint32_t clock, int mode);
 
 #endif /* SPI_MASTER_H */

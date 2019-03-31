@@ -41,3 +41,8 @@ START_ENUM(cmd_i2c_t)
 DEF_ENUM(CMD_I2C_READ,          0)  /* params: device address, byte count */
 DEF_ENUM(CMD_I2C_WRITE,         1)  /* params: device address, byte count, data */
 END_ENUM(cmd_i2c_t)
+
+START_ENUM(cmd_spi_t)
+DEF_ENUM(CMD_SPI_CONFIG,        0)  /* params: clock speed (2 bytes; kHz), SPI mode */
+DEF_ENUM(CMD_SPI_TRANSFER,      1)  /* params: byte count, data */
+END_ENUM(cmd_spi_t)

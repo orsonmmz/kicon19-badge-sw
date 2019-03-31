@@ -24,6 +24,7 @@
 #include "udc.h"
 #include "udi_cdc.h"
 #include "commands.h"
+#include "spi_master.h"
 #include "lcd.h"
 #include "gfx.h"
 #include "SSD1306_commands.h"
@@ -72,6 +73,7 @@ static void init_system(void)
     serial_init(115200);
     led_init();
     btn_init();
+    spi_init(1000000, 0);
     SSD1306_init();
     ioc_init();
     la_init();

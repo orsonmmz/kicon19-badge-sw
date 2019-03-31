@@ -162,6 +162,10 @@ static int cmd_execute_normal(void)
                     cmd_i2c(&cmd_buf[2], cmd_len - 1);
                     break;
 
+                case CMD_TYPE_SPI:
+                    cmd_spi(&cmd_buf[2], cmd_len - 1);
+                    break;
+
                 default:
                     cmd_resp_init(CMD_RESP_INVALID_CMD);
                     break;

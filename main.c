@@ -45,13 +45,6 @@ void SysTick_Handler(void)
 {
 }
 
-/**
- * \brief Configure timer ISR to fire regularly.
- */
-static void init_timer_isr(void)
-{
-    SysTick_Config((sysclk_get_cpu_hz() / 1000) * 100); // 100 ms
-}
 
 /**
  * \brief initialize pins, watchdog, etc.
@@ -67,8 +60,8 @@ static void init_system(void)
     /* Initialize the system clock */
     sysclk_init();
 
-    /* Configure timer ISR to fire regularly */
-    //init_timer_isr();
+    /* Configure timer ISR to fire regularly (100 ms) */
+    /* SysTick_Config((sysclk_get_cpu_hz() / 1000) * 100); */
 
     serial_init(115200);
     led_init();

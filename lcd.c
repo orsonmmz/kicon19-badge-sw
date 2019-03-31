@@ -25,6 +25,7 @@
 #include <twi.h>
 #include <pio.h>
 
+#include "io_conf.h"
 #include "SSD1306_commands.h"
 #include "fonts.h"
 #include "uart.h"
@@ -445,6 +446,7 @@ void SSD1306_drawPage(uint8_t pageIndex, const uint8_t *pageBuffer)
 	//commands to set page address and column starting point at 2: this display is shifted by 2 pixels so the column ranges from 2-129
 	uint8_t cmds[5]={SSD1306_PAGESTART+pageIndex, SSD1306_SETLOWCOLUMN, SSD1306_Offset,SSD1306_SETHIGHCOLUMN,0x10};
 
+	io_configure(IO_I2C);
 	SSD1306_writeCmd(cmds,sizeof(cmds));
 	SSD1306_writeData(pageBuffer, LCD_WIDTH, 0);
 }
@@ -469,9 +471,7 @@ void SSD1306_drawPageDMA(uint8_t pageIndex, const uint8_t *pageBuffer)
  */
 void SSD1306_drawBuffer(void)
 {
-	uint16_t i;
-
-	for (i=0; i<LCD_PAGES; i++)
+	for (uint16_t i=0; i < LCD_PAGES; i++)
 	{
 		SSD1306_drawPage(i, displayBuffer+(i*LCD_WIDTH));
 	}
@@ -484,6 +484,7 @@ void SSD1306_drawBufferDMA(void)
 {
 	busy = 1;
 	dma_transfers = LCD_PAGES;
+	io_configure(IO_I2C);
 
 	SSD1306_drawPageDMA(0, displayBuffer);
 

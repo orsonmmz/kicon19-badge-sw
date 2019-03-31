@@ -21,6 +21,7 @@
 #include "i2c.h"
 #include "lcd.h"
 #include "command_handlers.h"
+#include "io_conf.h"
 
 #include <twi.h>
 #include <sysclk.h>
@@ -60,6 +61,7 @@ void cmd_i2c(const uint8_t* data_in, unsigned int input_len) {
     packet.buffer = (uint8_t*) ptr; /* discarding const qualifier */
 
     while(SSD1306_isBusy());    // TODO better synchronization
+    io_configure(IO_I2C);
 
     switch (data_in[0]) {
         case CMD_I2C_READ:

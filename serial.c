@@ -23,6 +23,7 @@
 #include "command_handlers.h"
 #include "apps_list.h"
 #include "settings_list.h"
+#include "io_conf.h"
 
 #include <uart.h>
 #include <sysclk.h>
@@ -80,6 +81,8 @@ void app_uart_func(void) {
     SSD1306_clearBufferFull();
     SSD1306_setString(15, 3, "USB-UART adapter", 16, WHITE);
     SSD1306_drawBufferDMA();
+
+    io_configure(IO_UART);
 
     switch (menu_uart_baud.val) {
         case 0: serial_init(115200); break;

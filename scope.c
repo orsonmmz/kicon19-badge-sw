@@ -22,6 +22,7 @@
 #include "buttons.h"
 #include "apps_list.h"
 #include "settings_list.h"
+#include "io_conf.h"
 
 #include <sysclk.h>
 #include <twi.h>
@@ -169,9 +170,7 @@ void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 void scope_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 {
     pmc_enable_periph_clk(ID_ADC);
-    pio_configure(PIOA, PIO_INPUT, PIO_PA20X1_AD3, PIO_DEFAULT);
-    pio_configure(PIOA, PIO_INPUT, PIO_PA22X1_AD9, PIO_DEFAULT);
-
+    pio_configure(PIOA, PIO_INPUT, (PIO_PA20X1_AD3 | PIO_PA22X1_AD9), PIO_DEFAULT);
     scope_configure(adc_ch, ul_size);
 }
 
@@ -301,6 +300,8 @@ void app_scope_func(void)
 {
     int chan_count = 0;
     enum adc_channel_num_t adc_chans[2];
+
+    io_configure(IO_ADC);
 
     switch (menu_scope_channels.val) {
         case 0: // channel 1

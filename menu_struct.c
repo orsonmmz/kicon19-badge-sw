@@ -101,8 +101,27 @@ menu_list_t menu_scope_channels = {
     }
 };
 
-// TODO timebase
-// TODO trigger
+menu_list_t menu_scope_fsampling = {
+    "Sampling frequency", 0, {
+        { SETTING,  { .setting = "1 MHz" } },
+        { SETTING,  { .setting = "500 kHz" } },
+        { SETTING,  { .setting = "200 kHz" } },
+        { SETTING,  { .setting = "100 kHz" } },
+        { SETTING,  { .setting = "50 kHz" } },
+        { END,      { NULL } }
+    }
+};
+
+/* gain setting does not work.. */
+/*menu_list_t menu_scope_gain = {
+    "Gain", 0, {
+        { SETTING,  { .setting = "x1" } },
+        { SETTING,  { .setting = "x2" } },
+        { SETTING,  { .setting = "x4" } },
+        { END,      { NULL } }
+    }
+};*/
+
 application_t app_scope = { "RUN", app_scope_func };
 
 menu_list_t menu_scope = {
@@ -110,6 +129,8 @@ menu_list_t menu_scope = {
     {
         { APP,       { .app     = &app_scope } },
         { SUBMENU,   { .submenu = &menu_scope_channels } },
+        { SUBMENU,   { .submenu = &menu_scope_fsampling } },
+        /*{ SUBMENU,   { .submenu = &menu_scope_gain } },*/
         { END,      { NULL } }
     }
 };

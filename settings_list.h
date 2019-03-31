@@ -23,11 +23,13 @@
 
 #include "menu_struct.h"
 
-// Settings menus
+/* Settings menus */
 extern menu_list_t menu_la_lcd_sampling_freq;
 extern menu_list_t menu_la_lcd_trigger_input;
 extern menu_list_t menu_la_lcd_trigger_level;
 extern menu_list_t menu_scope_channels;
+extern menu_list_t menu_scope_fsampling;
+/*extern menu_list_t menu_scope_gain;*/
 extern menu_list_t menu_uart_baud;
 
 #endif /* SETTINGS_LIST_H */

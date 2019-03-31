@@ -50,11 +50,11 @@ struct adc_ch
 	uint8_t offset_pixels;
 	uint16_t buffer[BUFFER_SIZE/2];
 	uint16_t *draw_buffer;
+        uint32_t threshold;
 };
 
 
-void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size);
-void scope_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size);
+void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size, uint32_t fsampling);
 void scope_draw(void);
 
 #endif /* SCOPE_H_ */

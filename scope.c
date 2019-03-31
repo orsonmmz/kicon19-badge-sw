@@ -40,9 +40,6 @@ static volatile int adc_buffers_rdy=0;
 static uint32_t adc_active_channels;
 static uint32_t adc_buffer_size;
 
-uint32_t adc0_threshold=45; //into struct? not sure what api is needed
-uint32_t adc1_threshold=20;
-
 static struct adc_ch adc_channels[2];
 
 /**
@@ -79,9 +76,12 @@ static uint32_t adc_read_buffer(Adc * p_adc, uint16_t * p_s_buffer, uint32_t ul_
  * \param adc_ch The pointer of channels names array.
  * \param ul_size Number of channels.
  */
-void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
+void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size, uint32_t fsampling)
 {
 	if (ul_size > NUM_CHANNELS) return;
+
+	pmc_enable_periph_clk(ID_ADC);
+	pio_configure(PIOA, PIO_INPUT, (PIO_PA20X1_AD3 | PIO_PA22X1_AD9), PIO_DEFAULT);
 
 	/* Disable PDC channel interrupt. */
 	adc_disable_interrupt(ADC, 0xFFFFFFFF);
@@ -99,6 +99,7 @@ void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 		adc_channels[0].offset_pages = 0;
 		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
 		adc_channels[0].draw_buffer = adc_channels[0].buffer;
+                adc_channels[0].threshold = 32;   /* middle of ADC range */
 	}else
 	{
 		adc_active_channels = 2;
@@ -110,24 +111,17 @@ void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 		adc_channels[0].offset_pages = 4;
 		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
 		adc_channels[0].draw_buffer = adc_channels[0].buffer;
+                adc_channels[0].threshold = 32;   /* middle of ADC range */
 
 		adc_channels[1].channel = adc_ch[1];
 		adc_channels[1].offset_pages=0;
 		adc_channels[1].offset_pixels = adc_channels[1].offset_pages*LCD_PAGE_SIZE;
 		adc_channels[1].draw_buffer = adc_channels[1].buffer;
+                adc_channels[1].threshold = 32;   /* middle of ADC range */
 	}
 
-	/* Formula:
-	 * ADCClock = MCK / ( (PRESCAL+1) * 2 )
-	 * For example, MCK = 64MHZ, PRESCAL = 4, then:
-	 * ADCClock = 64 / ((4+1) * 2) = 6.4MHz;
-	 *
-	 * Formula:
-	 *     Startup  Time = startup value / ADCClock
-	 *     Startup time = 64 / 100kHz
-	 *     here 64/100kHz
-	 */
-	adc_init(ADC, sysclk_get_cpu_hz(), 1000, ADC_STARTUP_TIME_4);
+        /* one sample takes 20 ADC clock periods */
+	adc_init(ADC, sysclk_get_cpu_hz(), fsampling * 20, ADC_STARTUP_TIME_4);
 
 	/* Formula:
 	 *     Transfer Time = (TRANSFER * 2 + 3) / ADCClock
@@ -161,18 +155,6 @@ void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
 	adc_read_buffer(ADC, us_value, adc_buffer_size);
 }
 
-/**
- * \brief Initializes the clocks, pio and configures ADC, interrupts and PDC transfer.
- *
- * \param adc_ch The pointer of channels names array.
- * \param ul_size Number of channels.
- */
-void scope_initialize(enum adc_channel_num_t *adc_ch, uint32_t ul_size)
-{
-    pmc_enable_periph_clk(ID_ADC);
-    pio_configure(PIOA, PIO_INPUT, (PIO_PA20X1_AD3 | PIO_PA22X1_AD9), PIO_DEFAULT);
-    scope_configure(adc_ch, ul_size);
-}
 
 /**
  * \brief Displays the acquired data on the lcd
@@ -195,11 +177,6 @@ void scope_draw(void)
 		SSD1306_drawBufferDMA();
 		adc_buffers_rdy=0;
     }
-}
-
-int osc_buffer_rdy(void)
-{
-	return adc_buffers_rdy;
 }
 
 
@@ -257,7 +234,7 @@ void ADC_Handler(void)
 				adc_channels[0].buffer[adc0_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[0].offset_pixels;
 
 				/* Check if sample is above threshold - start to draw from here*/
-				if(!adc0_thr_found && adc_channels[0].buffer[adc0_counter]>= adc0_threshold)
+				if(!adc0_thr_found && adc_channels[0].buffer[adc0_counter]>= adc_channels[0].threshold)
 				{
 					adc_channels[0].draw_buffer = adc_channels[0].buffer + adc0_counter;
 					adc0_thr_index = adc0_counter;
@@ -276,7 +253,7 @@ void ADC_Handler(void)
 				adc_channels[1].buffer[adc1_counter]=(us_value[i] & ADC_LCDR_LDATA_Msk)*RESOLUTION(adc_pages_per_channel) + adc_channels[1].offset_pixels;
 
 				/* Check if sample is above threshold - start to draw from here*/
-				if(!adc1_thr_found && adc_channels[1].buffer[adc1_counter]>= adc1_threshold)
+				if(!adc1_thr_found && adc_channels[1].buffer[adc1_counter]>= adc_channels[1].threshold)
 				{
 					adc_channels[1].draw_buffer = adc_channels[1].buffer + adc1_counter;
 					adc1_thr_index = adc1_counter;
@@ -300,30 +277,51 @@ void app_scope_func(void)
 {
     int chan_count = 0;
     enum adc_channel_num_t adc_chans[2];
+    uint32_t fsampling;
 
     io_configure(IO_ADC);
 
     switch (menu_scope_channels.val) {
-        case 0: // channel 1
+        case 0: /* channel 1 */
             chan_count = 1;
             adc_chans[0] = ADC_CHANNEL_3;
             break;
-        case 1: // channel 2
+        case 1: /* channel 2 */
             chan_count = 1;
             adc_chans[0] = ADC_CHANNEL_9;
             break;
-        case 2: // channel 1&2
+        case 2: /* channel 1&2 */
             chan_count = 2;
             adc_chans[0] = ADC_CHANNEL_3;
             adc_chans[1] = ADC_CHANNEL_9;
             break;
     }
 
-    scope_initialize(adc_chans, chan_count);
+    switch (menu_scope_fsampling.val) {
+        default: /* fall-through */
+        case 0: fsampling = 1000000; break;
+        case 1: fsampling = 500000; break;
+        case 2: fsampling = 200000; break;
+        case 3: fsampling = 100000; break;
+        case 4: fsampling = 50000; break;
+    }
+
+    scope_configure(adc_chans, chan_count, fsampling);
+
+#if 0
+    /* for some reason, the code below does not affect the acquired data */
+    for (int i = 0; i < chan_count; ++i) {
+        /* adding 1 to the value selected in the gain menu
+         * corresponds to the selected gain value
+         * (menu 0 => gain x1, menu 1 => gain x2, menu 2 => gain x4) */
+        adc_set_channel_input_gain(ADC, adc_chans[i], menu_scope_gain.val + 1);
+        adc_disable_channel_input_offset(ADC, adc_chans[i]);
+    }
+#endif
 
     while(btn_state() != BUT_LEFT) {
         scope_draw();
     }
 
-    while(btn_state());    // wait for the button release
+    while(btn_state());    /* wait for the button release */
 }

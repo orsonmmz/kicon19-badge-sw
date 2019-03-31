@@ -23,6 +23,12 @@ import binascii
 import commands_def as cmd_defs
 
 class KiconBadge:
+    BLACK = 0
+    WHITE = 1
+
+    LCD_WIDTH = 128
+    LCD_HEIGHT = 64
+
     def __init__(self, port):
         self._serial = None
         self._serial = serial.Serial(port, 115200, timeout=0.1)   # TODO baud?
@@ -94,3 +100,28 @@ class KiconBadge:
         cmd = self._make_cmd(cmd_defs.CMD_TYPE_UART, data)
         self._serial.write(cmd)
         return self._get_resp()
+
+    def lcd_clear(self):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LCD,
+                struct.pack('>B', cmd_defs.CMD_LCD_CLEAR))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def lcd_refresh(self):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LCD,
+                struct.pack('>B', cmd_defs.CMD_LCD_REFRESH))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def lcd_pixel(self, x, y, val):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LCD,
+                struct.pack('>BBBB', cmd_defs.CMD_LCD_PIXEL, x, y, val))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def lcd_text(self, row, col, text):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LCD,
+                struct.pack('>BBBB%ds' % len(text),
+                cmd_defs.CMD_LCD_TEXT, row, col, len(text), bytes(text, 'ascii')))
+        self._serial.write(cmd)
+        self._get_resp()

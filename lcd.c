@@ -567,6 +567,11 @@ void cmd_lcd(const uint8_t* data_in, unsigned int input_len)
             SSD1306_clearBufferFull();
             break;
 
+        case CMD_LCD_REFRESH:
+            while (SSD1306_isBusy());
+            SSD1306_drawBufferDMA();
+            break;
+
         case CMD_LCD_PIXEL:
             SSD1306_setPixel(data_in[1], data_in[2], data_in[3]);
             break;
@@ -579,6 +584,4 @@ void cmd_lcd(const uint8_t* data_in, unsigned int input_len)
         default: cmd_resp_init(CMD_RESP_INVALID_CMD); return;
     }
 
-    while (SSD1306_isBusy());
-    SSD1306_drawBufferDMA();
 }

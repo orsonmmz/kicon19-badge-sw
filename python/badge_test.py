@@ -22,3 +22,8 @@ from kicon_badge import KiconBadge
 badge = KiconBadge('/dev/ttyACM0')
 badge.reset()
 uart_data = badge.uart_transfer(bytes('badge test', 'ascii'))
+
+badge.lcd_clear()
+badge.lcd_pixel(2, 2, 1)
+badge.lcd_text(1, 1, "aaa")
+badge.lcd_refresh()

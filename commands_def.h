@@ -49,6 +49,7 @@ END_ENUM(cmd_spi_t)
 
 START_ENUM(cmd_lcd_t)
 DEF_ENUM(CMD_LCD_CLEAR,         0)
-DEF_ENUM(CMD_LCD_PIXEL,         1)  /* params: x, y, color */
-DEF_ENUM(CMD_LCD_TEXT,          2)  /* params: row, col, byte count, text */
+DEF_ENUM(CMD_LCD_REFRESH,       1)
+DEF_ENUM(CMD_LCD_PIXEL,         2)  /* params: x, y, color */
+DEF_ENUM(CMD_LCD_TEXT,          3)  /* params: row, col, byte count, text */
 END_ENUM(cmd_lcd_t)

@@ -85,11 +85,16 @@ int main(void)
 {
     init_system();
 
+    /* Splash screen */
     SSD1306_drawBitmap(0, 0, kicon_logo, 128, 32);
     SSD1306_drawBufferDMA();
-    SSD1306_setString(20, 7, "press a button", 14, WHITE);
 
-    //while(!btn_state()); // wait for a button press   // TODO uncomment
+    /* wait ~3s or till a button is pressed */
+    for(int i = 0; i < (1 << 20); ++i) {
+        if (btn_state()) {
+            break;
+        }
+    }
 
     while(1) {
         menu();

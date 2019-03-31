@@ -30,3 +30,8 @@ DEF_ENUM(CMD_RESP_INVALID_CMD,  3)  /* invalid command */
 DEF_ENUM(CMD_RESP_OVERFLOW,     4)  /* command buffer overflown */
 DEF_ENUM(CMD_RESP_CRC_ERR,      5)  /* incorrect CRC */
 END_ENUM(cmd_resp_t)
+
+START_ENUM(cmd_led_t)
+DEF_ENUM(CMD_LED_SET,           0)  /* params: led number and state */
+DEF_ENUM(CMD_LED_BLINK,         1)  /* params: led number and period */
+END_ENUM(cmd_led_t)

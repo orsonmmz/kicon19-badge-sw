@@ -38,11 +38,13 @@
 
 void btn_init(void)
 {
-    pmc_enable_periph_clk(ID_PIOA);
     pio_configure_pin(BUT1_IDX, BUTTON_PIO_ATTR);
     pio_configure_pin(BUT2_IDX, BUTTON_PIO_ATTR);
     pio_configure_pin(BUT3_IDX, BUTTON_PIO_ATTR);
     pio_configure_pin(BUT4_IDX, BUTTON_PIO_ATTR);
+
+    pmc_enable_periph_clk(ID_PIOA);
+    pmc_enable_periph_clk(ID_PIOB);
 }
 
 int btn_state(void)

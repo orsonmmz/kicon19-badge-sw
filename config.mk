@@ -59,6 +59,7 @@ CSRCS = \
        logic_analyzer.c \
        usb_handlers.c \
        lcd.c \
+       led.c \
        scope.c \
        spi_master.c \
        gfx.c \

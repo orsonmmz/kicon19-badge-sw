@@ -40,6 +40,7 @@ void cmd_uart(const uint8_t* data_in, unsigned int input_len);
 /*void cmd_i2c(const uint8_t* data_in, unsigned int input_len);*/
 /*void cmd_spi(const uint8_t* data_in, unsigned int input_len);*/
 /*void cmd_pio(const uint8_t* data_in, unsigned int input_len);*/
+void cmd_led(const uint8_t* data_in, unsigned int input_len);
 /*void cmd_lcd(const uint8_t* data_in, unsigned int input_len);*/
 void cmd_btn(const uint8_t* data_in, unsigned int input_len);
 /*void cmd_adc(const uint8_t* data_in, unsigned int input_len);*/

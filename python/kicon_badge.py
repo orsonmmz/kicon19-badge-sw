@@ -156,3 +156,40 @@ class KiconBadge:
         cmd = self._make_cmd(cmd_defs.CMD_TYPE_BTN)
         self._serial.write(cmd)
         return self._get_resp()[0]
+
+    def i2c_read(self, dev_addr, reg_addr, length):
+        if type(reg_addr) == int:
+            reg_addr = reg_addr.to_bytes(max(1, (reg_addr.bit_length() + 7) // 8), 'big')
+
+        reg_addr_len = len(reg_addr)
+
+        if reg_addr_len > 4:
+            raise Exception("I2C register address cannot be longer than 4 bytes")
+
+        if length < 0 or length > 255:
+            raise Exception("Requested data length must be in range [0-255]")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_I2C,
+                struct.pack('>BBB%dsB' % (reg_addr_len),
+                    cmd_defs.CMD_I2C_READ, dev_addr, reg_addr_len, reg_addr, length))
+        self._serial.write(cmd)
+        return self._get_resp()
+
+    def i2c_write(self, dev_addr, reg_addr, data):
+        if type(reg_addr) == int:
+            reg_addr = reg_addr.to_bytes(max(1, (reg_addr.bit_length() + 7) // 8), 'big')
+
+        reg_addr_len = len(reg_addr)
+        data_len = len(data)
+
+        if reg_addr_len > 4:
+            raise Exception("I2C register address cannot be longer than 4 bytes")
+
+        if data_len > 255:
+            raise Exception("Written data length must be in range [0-255]")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_I2C,
+                struct.pack('>BBB%dsB%ds' % (reg_addr_len, data_len),
+                    cmd_defs.CMD_I2C_WRITE, dev_addr, reg_addr_len, reg_addr, data_len, data))
+        self._serial.write(cmd)
+        self._get_resp()

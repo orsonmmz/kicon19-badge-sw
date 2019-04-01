@@ -193,3 +193,27 @@ class KiconBadge:
                     cmd_defs.CMD_I2C_WRITE, dev_addr, reg_addr_len, reg_addr, data_len, data))
         self._serial.write(cmd)
         self._get_resp()
+
+    def spi_config(self, clock_khz, mode):
+        if clock_khz < 1 or clock_khz > 60000:
+            raise Exception("SPI clock must be in range [1-60000] kHz")
+
+        if mode < 0 or mode > 3:
+            raise Exception("SPI mode must be in range [0-3]")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_SPI,
+                struct.pack('>BHB', cmd_defs.CMD_SPI_CONFIG, clock_khz, mode))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def spi_transfer(self, data_in):
+        data_in_len = len(data_in)
+
+        if data_in_len < 0 or data_in_len > 255:
+            raise Exception("SPI data lenght must be in range [0-255]")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_SPI,
+                struct.pack('>BB%ds' % data_in_len, cmd_defs.CMD_SPI_TRANSFER,
+                    data_in_len, data_in))
+        self._serial.write(cmd)
+        return self._get_resp()

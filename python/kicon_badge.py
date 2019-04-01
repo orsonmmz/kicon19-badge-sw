@@ -23,6 +23,14 @@ import binascii
 import commands_def as cmd_defs
 
 class KiconBadge:
+    LED1 = 0
+    LED2 = 1
+
+    BUT_RIGHT = 1
+    BUT_LEFT  = 2
+    BUT_DOWN  = 4
+    BUT_UP    = 8
+
     BLACK = 0
     WHITE = 1
 
@@ -125,3 +133,26 @@ class KiconBadge:
                 cmd_defs.CMD_LCD_TEXT, row, col, len(text), bytes(text, 'ascii')))
         self._serial.write(cmd)
         self._get_resp()
+
+    def led_set(self, led, val):
+        if not led in [self.LED1, self.LED2]:
+            raise Exception("Invalid LED number")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LED,
+                struct.pack('>BBB', cmd_defs.CMD_LED_SET, led, val))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def led_blink(self, led, period):
+        if not led in [self.LED1, self.LED2]:
+            raise Exception("Invalid LED number")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_LED,
+                struct.pack('>BBB', cmd_defs.CMD_LED_BLINK, led, period))
+        self._serial.write(cmd)
+        self._get_resp()
+
+    def buttons(self):
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_BTN)
+        self._serial.write(cmd)
+        return self._get_resp()[0]

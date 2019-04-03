@@ -31,25 +31,22 @@
 #include <limits.h>
 
 // Samples buffer
-#define LA_MAX_ACQ_SIZE     32768
-static uint8_t la_buffer[2*LA_MAX_ACQ_SIZE];
+#define LA_BUFFER_SIZE     32768
+static uint8_t la_buffer[LA_BUFFER_SIZE];
 static uint32_t la_acq_size;
 static uint8_t la_chan_enabled;
 static la_target_t la_target = LA_NONE;
 
+// Logic analyzer settings
 static uint8_t la_trigger_mask = 0;
 static uint8_t la_trigger_val = 0;
 static uint32_t la_read_cnt = 0;
 static uint32_t la_delay_cnt = 0;
 
-static volatile uint32_t la_data_len = 0;
-static volatile uint8_t *la_data_ptr = NULL;
-
-static volatile uint8_t la_retrigger = 0;
-
 // Acquisition finished handler
 static void la_acq_finished(void* param);
 
+static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
 
 // Fixes the hardware channel order
 // (see the connection between the logic probes pin header and the input buffer)
@@ -87,7 +84,7 @@ static uint32_t la_find_trigger(void) {
 
 
 void la_init(void) {
-    la_acq_size = LA_MAX_ACQ_SIZE;
+    la_acq_size = LA_BUFFER_SIZE;
     la_chan_enabled = 0xFF;
     ioc_set_clock(F1MHZ);
     ioc_set_handler(la_acq_finished, la_buffer);
@@ -97,7 +94,7 @@ void la_init(void) {
 void la_trigger(void) {
     /*memset(la_buffer, 0x00, sizeof(la_buffer));*/
     while(ioc_busy());
-    la_retrigger = 0;
+    la_state = RUNNING;
     ioc_fetch(la_buffer, la_acq_size);
 }
 
@@ -147,42 +144,9 @@ static void la_display_acq(uint32_t offset) {
 }
 
 
-static void la_usb_send_acq(uint32_t offset) {
-    // TODO handle read count & delay count
-    // TODO handle the trigger
-
-    la_data_len = la_acq_size;
-    la_data_ptr = la_buffer;
-    //udi_cdc_write_buf(la_buffer, la_acq_size);
-}
-
-
 static void la_acq_finished(void* param) {
     (void) param;
-    //uint8_t* data = (uint8_t*)(param);
-
-    la_fix_channels();
-    uint32_t offset = la_find_trigger();
-
-    if (offset > la_acq_size) {
-        // no match found, retrigger
-        la_retrigger = 1;
-        return;
-    }
-
-    switch (la_target) {
-        case LA_LCD:
-            /* keep retriggering */
-            la_retrigger = 1;
-            la_display_acq(offset);
-            break;
-
-        case LA_USB:
-            la_usb_send_acq(offset);
-            break;
-
-        case LA_NONE: break;    // mute warnings
-    }
+    la_state = ACQUIRED;
 }
 
 
@@ -321,6 +285,7 @@ void app_la_usb_func(void) {
     SSD1306_drawBufferDMA();
 
     while(btn_state() != BUT_LEFT) {
+        /* process commands */
         if (udi_cdc_is_rx_ready()) {
             cmd_new_data(udi_cdc_getc());
             processed = cmd_try_execute();
@@ -335,16 +300,25 @@ void app_la_usb_func(void) {
             }
         }
 
-        if (la_retrigger) {
-            la_trigger();
-        }
-        else if (la_data_len > 0) {
-            udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
-            la_data_len = 0;
+        if (la_state == ACQUIRED) {
+            la_state = IDLE;
+
+            la_fix_channels();
+            uint32_t offset = la_find_trigger();
+
+            if (offset < la_acq_size) {
+                /* trigger detected, send the buffer */
+                // TODO handle read count & delay count
+                // TODO handle the trigger
+                udi_cdc_write_buf((uint8_t*) &la_buffer[offset], la_acq_size);
+            } else {
+                la_trigger();
+            }
         }
     }
 
     while(btn_state());    /* wait for the button release */
+    la_state = IDLE;
 }
 
 
@@ -375,10 +349,22 @@ void app_la_lcd_func(void) {
     la_trigger();
 
     while(btn_state() != BUT_LEFT) {
-        if (la_retrigger) {
+        if (la_state == ACQUIRED) {
+            la_state = IDLE;
+
+            la_fix_channels();
+            uint32_t offset = la_find_trigger();
+
+            if (offset < la_acq_size) {
+                /* trigger detected, draw the results */
+                la_display_acq(offset);
+            }
+
+            /* keep retriggering */
             la_trigger();
         }
     }
 
     while(btn_state());    /* wait for the button release */
+    la_state = IDLE;
 }

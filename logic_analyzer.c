@@ -50,29 +50,34 @@ static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
 
 // Fixes the hardware channel order
 // (see the connection between the logic probes pin header and the input buffer)
+#define LA_FIX_ORDER(val) ((val & 0x0f) \
+            | (val & 0x80) >> 3 \
+            | (val & 0x40) >> 1 \
+            | (val & 0x20) << 1 \
+            | (val & 0x10) << 3)
+
 static void la_fix_channels(void) {
     for(unsigned int i = 0; i < la_acq_size; ++i) {
-        uint8_t val = la_buffer[i];
-        la_buffer[i] =(val & 0x0f)
-            | (val & 0x80) >> 3
-            | (val & 0x40) >> 1
-            | (val & 0x20) << 1
-            | (val & 0x10) << 3;
+        la_buffer[i] = LA_FIX_ORDER(la_buffer[i]);
     }
 }
 
 
 // Searches the acquisition buffer for a sample matching the configured
 // trigger. Will return the sample index or UINT_MAX if nothing found.
-static uint32_t la_find_trigger(void) {
+// This function works with samples which do not have the order fixed
+// (see LA_FIX_ORDER macro)
+static uint32_t la_find_trigger_unfixed(void) {
     if (la_trigger_mask == 0) {
         return 0;
     }
 
-    uint8_t *buf_ptr = la_buffer;
+    const uint8_t mask = LA_FIX_ORDER(la_trigger_mask);
+    const uint8_t val = LA_FIX_ORDER(la_trigger_val);
+    const uint8_t *buf_ptr = la_buffer;
 
     for (uint32_t i = 0; i < la_acq_size; ++i) {
-        if ((*buf_ptr & la_trigger_mask) == la_trigger_val) {
+        if ((*buf_ptr & mask) == val) {
             return i;
         }
 
@@ -303,13 +308,13 @@ void app_la_usb_func(void) {
         if (la_state == ACQUIRED) {
             la_state = IDLE;
 
-            la_fix_channels();
-            uint32_t offset = la_find_trigger();
+            uint32_t offset = la_find_trigger_unfixed();
 
             if (offset < la_acq_size) {
                 /* trigger detected, send the buffer */
                 // TODO handle read count & delay count
                 // TODO handle the trigger
+                la_fix_channels();
                 udi_cdc_write_buf((uint8_t*) &la_buffer[offset], la_acq_size);
             } else {
                 la_trigger();
@@ -352,11 +357,11 @@ void app_la_lcd_func(void) {
         if (la_state == ACQUIRED) {
             la_state = IDLE;
 
-            la_fix_channels();
-            uint32_t offset = la_find_trigger();
+            uint32_t offset = la_find_trigger_unfixed();
 
             if (offset < la_acq_size) {
                 /* trigger detected, draw the results */
+                la_fix_channels();
                 la_display_acq(offset);
             }
 

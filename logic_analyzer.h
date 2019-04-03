@@ -53,9 +53,4 @@ void la_set_target(la_target_t target);
  */
 void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val);
 
-/**
- * @brief Runs logic analyzer tasks. Should be executed in the main loop.
- */
-void la_run(void);
-
 #endif /* LOGIC_ANALYZER_H */

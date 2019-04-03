@@ -119,28 +119,6 @@ void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val) {
 }
 
 
-void la_run(void) {
-    if (la_retrigger) {
-        la_trigger();
-    }
-    else if (la_data_len > 0) {
-        udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
-        la_data_len = 0;
-
-#if 0
-        // sending in chunks, does not seem to be necessary
-        /*while (la_data_len) {*/
-            uint32_t chunk = la_data_len > MAX_USB_CHUNK ? MAX_USB_CHUNK : la_data_len;
-            while(!udi_cdc_is_tx_ready());
-            udi_cdc_write_buf(la_data_ptr, chunk);
-            la_data_ptr += chunk;
-            la_data_len -= chunk;
-        /*}*/
-#endif
-    }
-}
-
-
 static void la_display_acq(uint32_t offset) {
     // double buffering
     uint8_t lcd_page[LCD_WIDTH], lcd_page2[LCD_WIDTH];
@@ -357,7 +335,13 @@ void app_la_usb_func(void) {
             }
         }
 
-        la_run();
+        if (la_retrigger) {
+            la_trigger();
+        }
+        else if (la_data_len > 0) {
+            udi_cdc_write_buf((uint8_t*) la_data_ptr, la_data_len);
+            la_data_len = 0;
+        }
     }
 
     while(btn_state());    /* wait for the button release */
@@ -391,7 +375,9 @@ void app_la_lcd_func(void) {
     la_trigger();
 
     while(btn_state() != BUT_LEFT) {
-        la_run();
+        if (la_retrigger) {
+            la_trigger();
+        }
     }
 
     while(btn_state());    /* wait for the button release */

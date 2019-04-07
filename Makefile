@@ -16,8 +16,8 @@ flash: $(TARGET_FLASH)
 	openocd -f interface/$(JTAG_IFACE).cfg -f scripts/at91sam4sx16x.cfg \
 	    -c "init; reset halt; at91sam4 gpnvm set 1; program $(TARGET_FLASH) reset verify exit"
 
-debug: $(TARGET_FLASH)
-	# Starts openocd and gdb halted on the reset handler
+debug_ocd:
 	openocd -f interface/$(JTAG_IFACE).cfg -f scripts/at91sam4sx16x.cfg -c "init; halt"
+
+debug_gdb: $(TARGET_FLASH)
 	$(GDB) -ex "target remote localhost:3333" $(TARGET_FLASH)
-	killall openocd

@@ -27,37 +27,27 @@
 /** Pointer to PDC register base. */
 static Pdc *p_pdc;
 
-static int busy = 0;
+static volatile int busy = 0;
 
-static void (*finish_handler)(void*) = NULL;
-static void* finish_handler_param = NULL;
+static void dummy_handler(int buf) {}
+
+static void (*finish_handler)(int) = dummy_handler;
 static int pio_pll_prescaler = 0;
 
-/** PIOA interrupt priority. */
+static ioc_buffer_t *ioc_buffers;
+static int ioc_buffers_cnt;
+
+static volatile int ioc_buffer_idx;
+static volatile int ioc_buffer_current;
+
+
+/* PIOA interrupt priority */
 #define PIO_IRQ_PRI                    (4)
-
-static void capture_handler(Pio *p_pio)
-{
-    uint32_t dummy_data;
-
-    pmc_disable_pck(PMC_PCK_0);
-    pio_capture_disable_interrupt(p_pio, (PIO_PCIDR_ENDRX | PIO_PCIDR_RXBUFF));
-    pdc_disable_transfer(p_pdc, PERIPH_PTCR_RXTEN);
-
-    /* Clear any unwanted data */
-    pio_capture_read(PIOA, &dummy_data);
-
-    if(finish_handler)
-        (*finish_handler)(finish_handler_param);
-
-    busy = 0;
-}
-
 
 void ioc_init()
 {
+    p_pdc = pio_capture_get_pdc_base(PIOA);
     pmc_enable_periph_clk(ID_PIOA);
-    pio_capture_handler_set(capture_handler);
 
     /* Initialize PIO Parallel Capture function. */
     pio_capture_set_mode(PIOA, PIO_PCMR_ALWYS);
@@ -69,8 +59,6 @@ void ioc_init()
     /* Configure the sampling clock generator */
     ioc_set_clock(F1MHZ);
     pio_configure(PIOA, PIO_PERIPH_B, PIO_PA6B_PCK0, PIO_DEFAULT);
-
-    p_pdc = pio_capture_get_pdc_base(PIOA);
 
     /* Configure and enable interrupt of PIO. */
     NVIC_DisableIRQ(PIOA_IRQn);
@@ -122,29 +110,49 @@ void ioc_set_clock(clock_freq_t freq)
 }
 
 
-void ioc_fetch(uint8_t *destination, uint32_t sample_count)
+static inline int ioc_set_next_buffer(void) {
+    /* save the index of the currently acquired buffer */
+    ioc_buffer_current = ioc_buffer_idx;
+
+    if (ioc_buffers[ioc_buffer_idx].last) {
+        /* the last buffer has already been requested, stop here */
+        return 0;
+    }
+
+    /* move to the next buffer, wrap the index if needed */
+    if (++ioc_buffer_idx >= ioc_buffers_cnt) {
+        ioc_buffer_idx = 0;
+    }
+
+    /* set the next buffer */
+    p_pdc->PERIPH_RNPR = (uint32_t) ioc_buffers[ioc_buffer_idx].addr;
+    p_pdc->PERIPH_RNCR = ioc_buffers[ioc_buffer_idx].size;
+
+    return 1;
+}
+
+
+void ioc_start(ioc_buffer_t *buffers, int count)
 {
-    /** PDC data packet. */
-    pdc_packet_t packet_t;
-
-    if (busy)
-        return;
-
     busy = 1;
+    ioc_buffer_idx = 0;
+    ioc_buffers = buffers;
+    ioc_buffers_cnt = count;
 
     /* Set up PDC receive buffer */
-    packet_t.ul_addr = (uint32_t) destination;
-    packet_t.ul_size = sample_count;
-    pdc_rx_init(p_pdc, &packet_t, NULL);
+    p_pdc->PERIPH_RPR = (uint32_t) ioc_buffers[0].addr;
+    p_pdc->PERIPH_RCR = ioc_buffers[0].size;
 
-    /* Enable the sampling clock */
-    pmc_enable_pck(PMC_PCK_0);
+    ioc_set_next_buffer();
+
+    /* Configure the PIO capture interrupt mask. */
+    pio_capture_enable_interrupt(PIOA, (PIO_PCIER_ENDRX | PIO_PCIER_RXBUFF));
 
     /* Enable PDC transfer. */
     pdc_enable_transfer(p_pdc, PERIPH_PTCR_RXTEN);
 
-    /* Configure the PIO capture interrupt mask. */
-    pio_capture_enable_interrupt(PIOA, (PIO_PCIER_ENDRX | PIO_PCIER_RXBUFF));
+    /* Enable the sampling clock */
+    pmc_enable_pck(PMC_PCK_0);
 }
 
 
@@ -154,8 +162,28 @@ int ioc_busy(void)
 }
 
 
-void ioc_set_handler(void (*func)(void*), void* param)
+void ioc_set_handler(void (*func)(int))
 {
     finish_handler = func;
-    finish_handler_param = param;
+}
+
+
+void PIOA_Handler(void)
+{
+    int cur_buf = ioc_buffer_current;
+    ioc_set_next_buffer();
+
+    (*finish_handler)(cur_buf);
+
+    /* RXBUFF is set when there are no more buffers configured for acquisition */
+    if ((pio_capture_get_interrupt_status(PIOA) & PIO_PCISR_RXBUFF)) {
+        pmc_disable_pck(PMC_PCK_0);
+        pdc_disable_transfer(p_pdc, PERIPH_PTCR_RXTDIS);
+        pio_capture_disable_interrupt(PIOA, (PIO_PCIDR_ENDRX | PIO_PCIDR_RXBUFF));
+
+        /* Clear any unwanted data */
+        uint32_t dummy_data;
+        pio_capture_read(PIOA, &dummy_data);
+        busy = 0;
+    }
 }

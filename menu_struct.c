@@ -43,8 +43,6 @@ application_t app_la_usb = { "Logic analyzer (USB)", app_la_usb_func };
 
 menu_list_t menu_la_lcd_sampling_freq = {
     "Sampling frequency", 2, {
-        { SETTING,  { .setting = "50 MHz" } },
-        { SETTING,  { .setting = "20 MHz" } },
         { SETTING,  { .setting = "10 MHz" } },
         { SETTING,  { .setting = "5 MHz" } },
         { SETTING,  { .setting = "2 MHz" } },

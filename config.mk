@@ -74,7 +74,6 @@ CSRCS = \
        common/services/usb/udc/udc.c                      \
        sam/drivers/pdc/pdc.c                              \
        sam/drivers/pio/pio.c                              \
-       sam/drivers/pio/pio_handler.c                      \
        sam/drivers/pmc/pmc.c                              \
        sam/drivers/pmc/sleep.c                            \
        sam/drivers/tc/tc.c                                \

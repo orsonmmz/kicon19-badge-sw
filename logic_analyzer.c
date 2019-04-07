@@ -30,23 +30,33 @@
 #include <string.h>
 #include <limits.h>
 
-// Samples buffer
-#define LA_BUFFER_SIZE     32768
-static uint8_t la_buffer[LA_BUFFER_SIZE];
-static uint32_t la_acq_size;
-static uint8_t la_chan_enabled;
-static la_target_t la_target = LA_NONE;
+#define LA_CHANNELS 8
 
-// Logic analyzer settings
+// Samples buffer
+#define LA_BUFFER_SIZE     65536
+static uint8_t la_buffer[LA_BUFFER_SIZE];
+static uint8_t const *la_buffer_last = &la_buffer[LA_BUFFER_SIZE - 1];
+
+// Enabled channels
+static uint8_t la_chan_enabled;
+
+// Acquisition settings
 static uint8_t la_trigger_mask = 0;
 static uint8_t la_trigger_val = 0;
 static uint32_t la_read_cnt = 0;
 static uint32_t la_delay_cnt = 0;
 
+// Detected trigger offset (UINT_MAX when not detected)
+static volatile uint32_t la_trig_offset = UINT_MAX;
+
 // Acquisition finished handler
-static void la_acq_finished(void* param);
+static void la_acq_finished(int buf_idx);
 
 static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
+
+// Subbuffers used byt the I/O capture routines
+#define LA_IOC_BUFFERS_CNT  4
+static ioc_buffer_t la_ioc_buffers[LA_IOC_BUFFERS_CNT];
 
 // Fixes the hardware channel order
 // (see the connection between the logic probes pin header and the input buffer)
@@ -56,9 +66,16 @@ static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
             | (val & 0x20) << 1 \
             | (val & 0x10) << 3)
 
-static void la_fix_channels(void) {
-    for(unsigned int i = 0; i < la_acq_size; ++i) {
-        la_buffer[i] = LA_FIX_ORDER(la_buffer[i]);
+static void la_fix_channels(uint32_t offset, uint32_t size) {
+    uint8_t* buf_ptr = &la_buffer[offset];
+
+    for(unsigned int i = 0; i < size; ++i) {
+        *buf_ptr = LA_FIX_ORDER(*buf_ptr);
+
+        // Buffer wrapping
+        if (++buf_ptr > la_buffer_last) {
+            buf_ptr = la_buffer;
+        }
     }
 }
 
@@ -67,16 +84,16 @@ static void la_fix_channels(void) {
 // trigger. Will return the sample index or UINT_MAX if nothing found.
 // This function works with samples which do not have the order fixed
 // (see LA_FIX_ORDER macro)
-static uint32_t la_find_trigger_unfixed(void) {
+static uint32_t la_find_trigger_unfixed(const uint8_t *buf, uint32_t size) {
     if (la_trigger_mask == 0) {
         return 0;
     }
 
     const uint8_t mask = LA_FIX_ORDER(la_trigger_mask);
     const uint8_t val = LA_FIX_ORDER(la_trigger_val);
-    const uint8_t *buf_ptr = la_buffer;
+    const uint8_t *buf_ptr = buf;
 
-    for (uint32_t i = 0; i < la_acq_size; ++i) {
+    for (uint32_t i = 0; i < size; ++i) {
         if ((*buf_ptr & mask) == val) {
             return i;
         }
@@ -89,35 +106,37 @@ static uint32_t la_find_trigger_unfixed(void) {
 
 
 void la_init(void) {
-    la_acq_size = LA_BUFFER_SIZE;
     la_chan_enabled = 0xFF;
     ioc_set_clock(F1MHZ);
-    ioc_set_handler(la_acq_finished, la_buffer);
+    ioc_set_handler(la_acq_finished);
 }
 
 
-void la_trigger(void) {
-    /*memset(la_buffer, 0x00, sizeof(la_buffer));*/
-    while(ioc_busy());
-    la_state = RUNNING;
-    ioc_fetch(la_buffer, la_acq_size);
-}
+static void la_start_acq(void) {
+    if (la_state != IDLE)
+        return;
 
+    la_trig_offset = UINT_MAX;
 
-void la_set_target(la_target_t target) {
-    la_target = target;
+    /* Triggers require splitting the acquisition to chunks,
+       to be able to seek for the trigger while next samples
+       are acquired (kind of double buffering) */
+    uint32_t buf_size = min(la_read_cnt * LA_IOC_BUFFERS_CNT,
+            LA_BUFFER_SIZE / LA_IOC_BUFFERS_CNT);
 
-    if (target == LA_LCD) {
-        // there is no point acquiring more samples than
-        // what can be displayed on the LCD
-        la_acq_size = LCD_WIDTH;
+    for (int i = 0; i < LA_IOC_BUFFERS_CNT; ++i) {
+        la_ioc_buffers[i].addr = la_buffer + i * buf_size;
+        la_ioc_buffers[i].size = buf_size;
+        la_ioc_buffers[i].last = 0;
     }
-}
 
+    if (la_trigger_mask == 0) {
+        /* No triggers configured, it is a single-run acquisition */
+        la_ioc_buffers[LA_IOC_BUFFERS_CNT - 1].last = 1;
+    }
 
-void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val) {
-    la_trigger_mask = trigger_mask;
-    la_trigger_val = trigger_val;
+    la_state = RUNNING;
+    ioc_start(la_ioc_buffers, LA_IOC_BUFFERS_CNT);
 }
 
 
@@ -140,18 +159,16 @@ static void la_display_acq(uint32_t offset) {
         for(int x = 0; x < LCD_WIDTH; ++x) {
             *page_ptr = (*buf_ptr & chan_mask) ? 0x02 : 0x80;
             ++page_ptr;
-            ++buf_ptr;
+
+            // Buffer wrapping
+            if (++buf_ptr > la_buffer_last) {
+                buf_ptr = la_buffer;
+            }
         }
 
         while(SSD1306_isBusy());
         SSD1306_drawPage(chan, CURRENT_PAGE);
     }
-}
-
-
-static void la_acq_finished(void* param) {
-    (void) param;
-    la_state = ACQUIRED;
 }
 
 
@@ -196,10 +213,10 @@ static clock_freq_t la_get_clock(int prescaler_100M) {
 static const uint8_t SUMP_ID_RESP[] = "1ALS";
 /* Device metadata */
 static const uint8_t SUMP_METADATA_RESP[] =
-//  token  value
+/*  token  value */
     "\x01" "KiCon-Badge\x00"   // device name
     "\x20" "\x00\x00\x00\x08"  // number of channels
-    "\x21" "\x00\x00\x80\x00"  // sample memory available [bytes] = 32768
+    "\x21" "\x00\x01\x00\x00"  // sample memory available [bytes] = 65536
     "\x23" "\x02\xfa\xf0\x80"  // maximum sampling rate [Hz] = 50 MHz
     "\x24" "\x00\x00\x00\x00"  // protocol version
     ;
@@ -214,7 +231,7 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
                 break;
 
             case RUN:
-                la_trigger();
+                la_start_acq();
                 break;
 
             case ID:
@@ -252,7 +269,6 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
             case SET_READ_DLY_CNT:
                 la_read_cnt = (uint16_t)((arg & 0xffff) + 1) * 4;
                 la_delay_cnt = (uint16_t)((arg >> 16) + 1) * 4;
-                la_acq_size = la_read_cnt;
                 break;
 
             case SET_DELAY_COUNT:
@@ -261,7 +277,6 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
 
             case SET_READ_COUNT:
                 la_read_cnt = arg;
-                la_acq_size = la_read_cnt;
                 break;
 
             // none of the flags has any meaning in this implementation
@@ -276,18 +291,78 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
 }
 
 
+/* Sends data in reverse order */
+static void cdc_write_buf_reverted(const uint8_t* data, uint32_t size) {
+    const uint8_t* ptr = &data[size];
+
+    while (ptr > data) {
+        --ptr;
+        udi_cdc_putc(*ptr);
+    }
+}
+
+
+static void la_usb_send(uint32_t offset, uint32_t size) {
+    if (offset + size <= LA_BUFFER_SIZE) {
+        cdc_write_buf_reverted(&la_buffer[offset], size);
+    } else {
+        unsigned int firstChunk = LA_BUFFER_SIZE - offset;
+        unsigned int secondChunk = size - firstChunk;
+        cdc_write_buf_reverted(la_buffer, secondChunk);
+        cdc_write_buf_reverted(&la_buffer[offset], firstChunk);
+    }
+}
+
+
+static void la_acq_finished(int buf_idx) {
+    /* still waiting for the trigger */
+    if (la_trig_offset == UINT_MAX) {
+        uint8_t *buf_addr = la_ioc_buffers[buf_idx].addr;
+        uint16_t buf_size = la_ioc_buffers[buf_idx].size;
+
+        la_trig_offset = la_find_trigger_unfixed(buf_addr, buf_size);
+
+        if (la_trig_offset != UINT_MAX) { /* trigger has been detected */
+            /* get the last samples and stop the acquisition when it reaches
+             * the current buffer
+             * (needed only for acquisitions with configured trigger) */
+            if (la_trigger_mask) {
+                la_ioc_buffers[buf_idx].size = la_trig_offset;
+                la_ioc_buffers[buf_idx].last = 1;
+
+                /* save the trigger offset with regard to the whole buffer */
+                la_trig_offset += (buf_addr - la_buffer);
+            }
+        }
+    } else {
+        /* was it the last acquisition? */
+        if (la_ioc_buffers[buf_idx].last) {
+            la_state = ACQUIRED;
+        }
+    }
+}
+
+
+
 void app_la_usb_func(void) {
     const uint8_t *resp;
     unsigned int resp_len;
     int processed;
 
-    la_set_target(LA_USB);
+    la_trigger_mask = 0;
+    la_trigger_val = 0;
+    la_read_cnt = 0;
+    la_trig_offset = UINT_MAX;
+    la_state = IDLE;
+
     cmd_set_mode(CMD_SUMP);
 
     while(SSD1306_isBusy());
     SSD1306_clearBufferFull();
     SSD1306_setString(5, 3, "Logic Analyzer (USB)", 20, WHITE);
     SSD1306_drawBufferDMA();
+
+    la_trig_offset = UINT_MAX;
 
     while(btn_state() != BUT_LEFT) {
         /* process commands */
@@ -305,40 +380,27 @@ void app_la_usb_func(void) {
             }
         }
 
+
+        /* send samples when the acquisition is over */
         if (la_state == ACQUIRED) {
+            la_fix_channels(la_trig_offset, la_read_cnt);
+            la_usb_send(la_trig_offset, la_read_cnt);
             la_state = IDLE;
-
-            uint32_t offset = la_find_trigger_unfixed();
-
-            if (offset < la_acq_size) {
-                /* trigger detected, send the buffer */
-                // TODO handle read count & delay count
-                // TODO handle the trigger
-                la_fix_channels();
-                udi_cdc_write_buf((uint8_t*) &la_buffer[offset], la_acq_size);
-            } else {
-                la_trigger();
-            }
         }
     }
 
     while(btn_state());    /* wait for the button release */
-    la_state = IDLE;
 }
 
 
 void app_la_lcd_func(void) {
-    la_set_target(LA_LCD);
-
-    // configure the logic analyzer
+    /* configure the logic analyzer */
     switch (menu_la_lcd_sampling_freq.val) {
-        case 0: ioc_set_clock(F50MHZ); break;
-        case 1: ioc_set_clock(F20MHZ); break;
-        case 2: ioc_set_clock(F10MHZ); break;
-        case 3: ioc_set_clock(F5MHZ); break;
-        case 4: ioc_set_clock(F2MHZ); break;
-        case 5: ioc_set_clock(F1MHZ); break;
-        case 6: ioc_set_clock(F500KHZ); break;
+        case 0: ioc_set_clock(F10MHZ); break;
+        case 1: ioc_set_clock(F5MHZ); break;
+        case 2: ioc_set_clock(F2MHZ); break;
+        case 3: ioc_set_clock(F1MHZ); break;
+        case 4: ioc_set_clock(F500KHZ); break;
     }
 
     if (menu_la_lcd_trigger_input.val == 0) {
@@ -346,30 +408,33 @@ void app_la_lcd_func(void) {
         la_trigger_mask = 0;
     } else {
         la_trigger_mask = (1 << (menu_la_lcd_trigger_input.val - 1));
+
+        SSD1306_clearBufferFull();
+        SSD1306_setString(6, 0, "Waiting for trigger", 19, WHITE);
+        SSD1306_drawBufferDMA();
     }
 
     la_trigger_val = menu_la_lcd_trigger_level.val ? la_trigger_mask : 0;
+    la_read_cnt = LCD_WIDTH;        /* number of requested samples */
 
-    /* start acquisition */
-    la_trigger();
+    la_state = IDLE;
+    la_start_acq();
 
     while(btn_state() != BUT_LEFT) {
-        if (la_state == ACQUIRED) {
+        if (la_state == RUNNING && !ioc_busy()) {
+            /* strange.. */
             la_state = IDLE;
+            la_start_acq();
+        }
 
-            uint32_t offset = la_find_trigger_unfixed();
-
-            if (offset < la_acq_size) {
-                /* trigger detected, draw the results */
-                la_fix_channels();
-                la_display_acq(offset);
-            }
-
-            /* keep retriggering */
-            la_trigger();
+        if (la_state == ACQUIRED) {
+            /* got all the samples, draw the results */
+            la_fix_channels(la_trig_offset, la_read_cnt);
+            la_display_acq(la_trig_offset);
+            la_state = IDLE;
+            la_start_acq();
         }
     }
 
     while(btn_state());    /* wait for the button release */
-    la_state = IDLE;
 }

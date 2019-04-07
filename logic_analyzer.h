@@ -20,37 +20,9 @@
 #ifndef LOGIC_ANALYZER_H
 #define LOGIC_ANALYZER_H
 
-#include <stdint.h>
-
-#define LA_CHANNELS     8
-
-///> Logic analyzer target (LCD display or SUMP protocol over USB)
-typedef enum { LA_NONE, LA_LCD, LA_USB } la_target_t;
-
 /**
  * @brief Initialization routine, has to be called before the first acquisition.
  */
 void la_init(void);
-
-/**
- * @brief Instant acquisition start.
- */
-void la_trigger(void);
-
-/**
- * @brief Selects destination for the acquired samples.
- *
- * Target "LCD" draws them on the display, whereas target "USB" transfers
- * them to a PC using SUMP protocol.
- */
-void la_set_target(la_target_t target);
-
-/**
- * @brief Configures the trigger.
- * @param trigger_mask selects which channels are used in the trigger matching.
- * @param trigger_val selects channel values that must match to activate the
- * trigger.
- */
-void la_set_trigger(uint8_t trigger_mask, uint8_t trigger_val);
 
 #endif /* LOGIC_ANALYZER_H */

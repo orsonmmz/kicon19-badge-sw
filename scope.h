@@ -33,7 +33,7 @@
 /** Total number of ADC channels in use */
 #define NUM_CHANNELS			2
 /** Size of the receive buffer and transmit buffer. */
-#define BUFFER_SIZE				NUM_CHANNELS*LCD_WIDTH*2
+#define SCOPE_BUFFER_SIZE			NUM_CHANNELS*LCD_WIDTH*2
 /** Reference voltage for ADC, in mv. */
 #define VOLT_REF				3300
 /** Maximum number of counts */
@@ -48,7 +48,7 @@ struct adc_ch
 	enum adc_channel_num_t channel;
 	uint8_t offset_pages;
 	uint8_t offset_pixels;
-	uint16_t buffer[BUFFER_SIZE/2];
+	uint16_t *buffer;
 	uint16_t *draw_buffer;
         uint32_t threshold;
 };

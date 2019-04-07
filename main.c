@@ -32,7 +32,10 @@
 #include "serial.h"
 #include "menu.h"
 #include "led.h"
+#include "buffer.h"
 
+/* Global large buffer */
+buffer_t buffer;
 
 volatile bool g_interrupt_enabled = true;
 

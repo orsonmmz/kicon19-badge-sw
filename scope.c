@@ -23,6 +23,7 @@
 #include "apps_list.h"
 #include "settings_list.h"
 #include "io_conf.h"
+#include "buffer.h"
 
 #include <sysclk.h>
 #include <twi.h>
@@ -30,8 +31,15 @@
 #include <adc.h>
 #include "pdc.h"
 
+/* The general buffer is divided in the following way:
+ * start                end                     description
+ * 0                    SCOPE_BUFFER_SIZE/2-1   adc_ch[0].buffer
+ * SCOPE_BUFFER_SIZE/2  SCOPE_BUFFER_SIZE-1     adc_ch[1].buffer
+ * SCOPE_BUFFER         SCOPE_BUFFER_SIZE*2     us_value
+ */
 
-static uint16_t us_value[BUFFER_SIZE];
+
+static uint16_t * const us_value = &buffer.u16[SCOPE_BUFFER_SIZE];
 
 /** number of lcd pages for a channel*/
 static uint32_t adc_pages_per_channel;
@@ -91,31 +99,34 @@ void scope_configure(enum adc_channel_num_t *adc_ch, uint32_t ul_size, uint32_t 
 	if(ul_size == 1)
 	{
 		adc_active_channels = 1;
-		adc_buffer_size = BUFFER_SIZE/2;
+		adc_buffer_size = SCOPE_BUFFER_SIZE/2;
 		adc_pages_per_channel = LCD_PAGES;
 		adc_pixels_per_channel = adc_pages_per_channel * LCD_WIDTH;
 
 		adc_channels[0].channel = adc_ch[0];
 		adc_channels[0].offset_pages = 0;
 		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
+                adc_channels[0].buffer = &buffer.u16[0];
 		adc_channels[0].draw_buffer = adc_channels[0].buffer;
                 adc_channels[0].threshold = 32;   /* middle of ADC range */
 	}else
 	{
 		adc_active_channels = 2;
-		adc_buffer_size = BUFFER_SIZE;
+		adc_buffer_size = SCOPE_BUFFER_SIZE;
 		adc_pages_per_channel = LCD_PAGES/2;
 		adc_pixels_per_channel = adc_pages_per_channel * LCD_WIDTH;
 
 		adc_channels[0].channel = adc_ch[0];
 		adc_channels[0].offset_pages = 4;
 		adc_channels[0].offset_pixels = adc_channels[0].offset_pages*LCD_PAGE_SIZE;
+                adc_channels[0].buffer = &buffer.u16[0];
 		adc_channels[0].draw_buffer = adc_channels[0].buffer;
                 adc_channels[0].threshold = 32;   /* middle of ADC range */
 
 		adc_channels[1].channel = adc_ch[1];
 		adc_channels[1].offset_pages=0;
 		adc_channels[1].offset_pixels = adc_channels[1].offset_pages*LCD_PAGE_SIZE;
+                adc_channels[1].buffer = &buffer.u16[SCOPE_BUFFER_SIZE/2];
 		adc_channels[1].draw_buffer = adc_channels[1].buffer;
                 adc_channels[1].threshold = 32;   /* middle of ADC range */
 	}

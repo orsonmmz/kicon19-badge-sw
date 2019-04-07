@@ -22,6 +22,7 @@
 #include "buttons.h"
 #include "lcd.h"
 #include "SSD1306_commands.h"
+#include "gfx.h"
 
 #include <stddef.h>
 #include <string.h>
@@ -41,6 +42,7 @@ static menu_stack_entry_t menu_stack[MENU_STACK_DEPTH] = { { NULL, 0 }, };
 
 static int offset = 0;
 static int selection = 0;
+static int down = 0;
 
 static void menu_stack_push(menu_list_t *menu, int sel) {
     menu_stack_entry_t *ptr = menu_stack;
@@ -190,5 +192,17 @@ void menu(void) {
         offset = selection;
     else if (selection >= offset + MENU_ENTRY_COUNT) {
         offset = selection - MENU_ENTRY_COUNT + 1;
+    }
+
+    if (buttons & BUT_DOWN) {
+        if (++down == 20) {
+            SSD1306_clearBufferFull();
+            SSD1306_drawBitmap(16, 0, gfx_test, 96, 64);
+            SSD1306_drawBufferDMA();
+            while (!btn_state());
+            down = 0;
+        }
+    } else {
+        down = 0;
     }
 }

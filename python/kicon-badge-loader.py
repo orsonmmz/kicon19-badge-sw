@@ -29,12 +29,12 @@ import getopt
 class SerialIF:
     def __init__(self, device="/dev/ttyACM0"):
         self.ser = serial.Serial(
-            port=device, baudrate=4000000, timeout=0.1, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
+            port=device, baudrate=4000000, timeout=0.5, rtscts=False, bytesize=8, parity='N', stopbits=1, xonxoff=0)
 
     def send(self, x):
         if isinstance(x, str):
-            for c in x.encode("ascii"):
-                self.ser.write(struct.pack("B", c))
+            a = x.encode("ascii")
+            self.ser.write(struct.pack(">%ds" % len(a), a))
         elif isinstance(x, int):
             self.ser.write(struct.pack("B", x))
         else:
@@ -309,7 +309,7 @@ def main():
             "Usage: %s file_name.bin [device_with_serial_port]" % sys.argv[0])
         sys.exit(0)
 
-    port = "/dev/ttyACM1"
+    port = "/dev/ttyACM0"
 
     if len(sys.argv) > 2:
         port = sys.argv[2]

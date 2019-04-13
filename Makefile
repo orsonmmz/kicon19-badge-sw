@@ -11,6 +11,9 @@ commands_def.py: commands_def.h
 	$(CC) -DGENERATE_PYTHON -E -P $< -o python/$@
 
 flash: $(TARGET_FLASH)
+	python ./python/kicon-badge-loader.py $(TARGET_FLASH:.elf=.bin)
+
+flash_ocd: $(TARGET_FLASH)
 	# GPNVM bit 1 has to be active in order to boot the flashed firmware
 	# instead of the bootloader
 	openocd -f interface/$(JTAG_IFACE).cfg -f scripts/at91sam4sx16x.cfg \

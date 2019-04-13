@@ -36,7 +36,7 @@
 
 #define SSD1306_ADDRESS     0x3C /* or 0x3D, depending on the jumper */
 
-/* offset values:
+/* horizontal offset values:
  * 0 for SSD1306 (normally 0.96")
  * 2 for SH1106  (normally 1.2")
  */
@@ -143,11 +143,6 @@ static void SSD1306_writeData(const uint8_t *buffer, int size, int DMA) {
     SSD1306_write(buffer, size, DATA, DMA);
 }
 
-/*
- * initializes: twi connection, display,
- * fills displayBuffer with 0xff (pixels on)
- * clears the display
- */
 void SSD1306_init(void) {
     uint8_t init[] = {
         SSD1306_DISPLAYOFF,  // display off
@@ -288,11 +283,9 @@ void SSD1306_setLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1,
 }
 
 /*
- * Updates the displayBuffer
- * x - coordinates in horizontal plane
- * pageIndex - coordinates in verical plane - index of page
+ * Copies raw data to the buffer.
  */
-void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer,
+static void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer,
                        int size) {
     // check if within bounds
     if ((pageIndex >= LCD_PAGES) || (x >= LCD_WIDTH)) return;
@@ -303,12 +296,6 @@ void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer,
     }
 }
 
-/*
- * Updates the displayBuffer
- * x - coordinates in horizontal plane
- * pageIndex - coordinates in verical plane - index of page
- * color - value
- */
 void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex, color_t color,
                          int size) {
     // check if within bounds
@@ -447,9 +434,6 @@ int SSD1306_isBusy(void) {
     return busy;
 }
 
-/*
- * Clears the display
- */
 void SSD1306_clear(void) {
     uint16_t i;
 

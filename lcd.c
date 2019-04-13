@@ -40,7 +40,7 @@
  * 0 for SSD1306 (normally 0.96")
  * 2 for SH1106  (normally 1.2")
  */
-#define SSD1306_OFFSET      0x00
+#define SSD1306_OFFSET      0x02
 
 typedef enum
 {

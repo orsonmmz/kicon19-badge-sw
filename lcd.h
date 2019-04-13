@@ -27,38 +27,22 @@
 #define LCD_PAGE_SIZE       8
 #define LCD_PAGES           LCD_HEIGHT/LCD_PAGE_SIZE
 
-#define SSD1306_address     0x3C //0x3D
-#define SSD1306_DC          6        //0=data 1=command
-#define SSD1306_CO          7         //continuation bit
-#define SSD1306_data        0x40
-#define SSD1306_cmd         0x00
-
-#define SSD1306_Offset      0x00
-
-#define BLACK               0 ///< Draw 'off' pixels
-#define WHITE               1 ///< Draw 'on' pixels
-#define INVERSE             2 ///< Invert pixels
-
-typedef enum
-{
-    DATA = SSD1306_data,
-    CMD = SSD1306_cmd
-} control_byte;
+typedef enum {
+    BLACK,      ///< Draw 'off' pixels
+    WHITE,      ///< Draw 'on' pixels
+    INVERSE     ///< Invert pixels
+} color_t;
 
 void SSD1306_init(void);
-
-void SSD1306_setOrientation(uint8_t orientation);
-void SSD1306_swap(uint8_t *a, uint8_t *b);
-void SSD1306_orientCoordinates(uint8_t *x1, uint8_t *y1);
 void SSD1306_clear(void);
 
-void SSD1306_setPixel(uint8_t x, uint8_t y, uint8_t color);
-void SSD1306_setLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, uint8_t color);
+void SSD1306_setPixel(uint8_t x, uint8_t y, color_t color);
+void SSD1306_setLine(uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1, color_t color);
 void SSD1306_setBuffer(uint8_t x, uint8_t pageIndex, uint8_t *buffer, int size);
-void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  uint8_t color, int size);
+void SSD1306_clearBuffer(uint8_t x, uint8_t pageIndex,  color_t color, int size);
 void SSD1306_clearBufferFull(void);
 void SSD1306_setString(uint8_t x, uint8_t pageIndex, const char *string,
-        int size, uint8_t color);
+        int size, color_t color);
 void SSD1306_drawBitmap(uint8_t x0, uint8_t y0, const uint8_t *bitmap,
         uint8_t width, uint8_t height);
 

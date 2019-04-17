@@ -39,7 +39,7 @@ class KiconBadge:
 
     def __init__(self, port):
         self._serial = None
-        self._serial = serial.Serial(port, 115200, timeout=0.1)   # TODO baud?
+        self._serial = serial.Serial(port, 115200, timeout=0.5)   # TODO baud?
 
     def __del__(self):
         if self._serial:
@@ -81,7 +81,7 @@ class KiconBadge:
                     % (calc_crc, resp_crc))
 
         if resp_type != cmd_defs.CMD_RESP_OK:
-            raise Exception('Response != OK: code = 0x%.2x, data = "%s"'
+            raise Exception('Response != OK: response = 0x%.2x, data = "%s"'
                     % (resp_type, str(binascii.hexlify(raw_data), 'ascii')))
 
         return raw_data
@@ -156,6 +156,15 @@ class KiconBadge:
         cmd = self._make_cmd(cmd_defs.CMD_TYPE_BTN)
         self._serial.write(cmd)
         return self._get_resp()[0]
+
+    def i2c_set_clock_khz(self, clock_khz):
+        if clock_khz > 400:
+            raise Exception("I2C cannot run faster than 400 kHz")
+
+        cmd = self._make_cmd(cmd_defs.CMD_TYPE_I2C,
+                struct.pack('>BH', cmd_defs.CMD_I2C_CLOCK, clock_khz))
+        self._serial.write(cmd)
+        return self._get_resp()
 
     def i2c_read(self, dev_addr, reg_addr, length):
         if type(reg_addr) == int:

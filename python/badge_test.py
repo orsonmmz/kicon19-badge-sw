@@ -40,6 +40,7 @@ badge.led_blink(badge.LED2, 2)
 
 print("Buttons state: %x" % badge.buttons())
 
+badge.i2c_set_clock_khz(200)
 # read the LCD status
 #badge.i2c_read(0x3c, 0x00, 1)
 # invert the LCD colors

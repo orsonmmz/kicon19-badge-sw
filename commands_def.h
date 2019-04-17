@@ -40,6 +40,7 @@ END_ENUM(cmd_led_t)
 START_ENUM(cmd_i2c_t)
 DEF_ENUM(CMD_I2C_READ,          0)  /* params: device address, byte count */
 DEF_ENUM(CMD_I2C_WRITE,         1)  /* params: device address, byte count, data */
+DEF_ENUM(CMD_I2C_CLOCK,         2)  /* params: clock speed (2 bytes; [kHz]) */
 END_ENUM(cmd_i2c_t)
 
 START_ENUM(cmd_spi_t)

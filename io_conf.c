@@ -18,13 +18,21 @@
  */
 
 #include "io_conf.h"
+#include "i2c.h"
+#include "lcd.h"
 #include "pio.h"
 
 static io_config_t current_conf = IO_UNINITIALIZED;
+static unsigned int user_i2c_clk = 100000;
 
 void io_configure(io_config_t conf) {
     if (current_conf == conf) {
         return;
+    }
+
+    /* save the user I2C clock settings before switching to a new mode */
+    if (current_conf == IO_I2C_CMD) {
+        user_i2c_clk = twi_get_clock();
     }
 
     switch (conf) {
@@ -39,7 +47,10 @@ void io_configure(io_config_t conf) {
                     PIO_OPENDRAIN | PIO_PULLUP);
             break;
 
-        case IO_I2C:
+        case IO_I2C_CMD: /* fall through */
+        case IO_I2C_LCD:
+            twi_set_clock(conf == IO_I2C_LCD ? LCD_I2C_CLOCK : user_i2c_clk);
+
             pio_configure(PIOA, PIO_PERIPH_A,
                 (PIO_PA3A_TWD0 | PIO_PA4A_TWCK0), PIO_OPENDRAIN | PIO_PULLUP);
             break;

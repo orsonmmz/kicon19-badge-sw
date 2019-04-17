@@ -27,21 +27,48 @@
 #include <sysclk.h>
 #include <pio.h>
 
-void twi_init(void) {
-    twi_options_t opt;
-    opt.master_clk = sysclk_get_peripheral_hz();
-    opt.speed      = 400000;
+static twi_options_t twi_opt;
 
+void twi_init(void) {
     pio_configure(PIOA, PIO_PERIPH_A,
             (PIO_PA3A_TWD0 | PIO_PA4A_TWCK0), PIO_OPENDRAIN | PIO_PULLUP);
     sysclk_enable_peripheral_clock(ID_TWI0);
     pmc_enable_periph_clk(ID_TWI0);
+    twi_set_clock(400000);
+}
 
-    twi_master_init(TWI0, &opt);
+
+void twi_set_clock(unsigned int speed_hz) {
+    twi_opt.master_clk = sysclk_get_peripheral_hz();
+    twi_opt.speed      = speed_hz;
+    twi_master_init(TWI0, &twi_opt);
+
+}
+
+
+unsigned int twi_get_clock(void) {
+    return twi_opt.speed;
 }
 
 
 void cmd_i2c(const uint8_t* data_in, unsigned int input_len) {
+    /* wait for the LCD to finish the data transfers */
+    while(SSD1306_isBusy());    // TODO better synchronization
+    io_configure(IO_I2C_CMD);
+
+    // I2C configuration, special case
+    if (data_in[0] == CMD_I2C_CLOCK) {
+        uint32_t clock = ((uint32_t)(data_in[1]) << 8 | data_in[2]) * 1000;
+
+        if (clock <= 400000) {
+            twi_set_clock(clock);
+            cmd_resp_init(CMD_RESP_OK);
+        } else {
+            cmd_resp_init(CMD_RESP_EXEC_ERR);
+        }
+        return;
+    }
+
     uint32_t status = TWI_ERROR_TIMEOUT;
     twi_packet_t packet;
     const uint8_t* ptr = &data_in[1];
@@ -59,9 +86,6 @@ void cmd_i2c(const uint8_t* data_in, unsigned int input_len) {
 
     packet.length = *ptr++;
     packet.buffer = (uint8_t*) ptr; /* discarding const qualifier */
-
-    while(SSD1306_isBusy());    // TODO better synchronization
-    io_configure(IO_I2C);
 
     switch (data_in[0]) {
         case CMD_I2C_READ:

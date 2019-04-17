@@ -389,7 +389,7 @@ void SSD1306_drawPage(uint8_t pageIndex, const uint8_t *pageBuffer) {
     const uint8_t cmds[5] = {SSD1306_PAGESTART + pageIndex, SSD1306_SETLOWCOLUMN,
                        SSD1306_OFFSET, SSD1306_SETHIGHCOLUMN, 0x10};
 
-    io_configure(IO_I2C);
+    io_configure(IO_I2C_LCD);
     SSD1306_writeCmd(cmds, sizeof(cmds));
     SSD1306_writeData(pageBuffer, LCD_WIDTH, 0);
 }
@@ -425,7 +425,7 @@ void SSD1306_drawBuffer(void) {
 void SSD1306_drawBufferDMA(void) {
     busy = 1;
     dma_transfers = LCD_PAGES;
-    io_configure(IO_I2C);
+    io_configure(IO_I2C_LCD);
 
     SSD1306_drawPageDMA(0, displayBuffer);
 }

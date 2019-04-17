@@ -23,7 +23,8 @@
 typedef enum {
     IO_UNINITIALIZED,
     IO_SPI,
-    IO_I2C,
+    IO_I2C_CMD,     /* I2C for command interface */
+    IO_I2C_LCD,     /* I2C for LCD */
     IO_UART,
     IO_ADC,
     IO_DAC

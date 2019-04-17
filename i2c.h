@@ -22,5 +22,7 @@
 #define I2C_H
 
 void twi_init(void);
+void twi_set_clock(unsigned int speed_hz);
+unsigned int twi_get_clock(void);
 
 #endif /* I2C_H */

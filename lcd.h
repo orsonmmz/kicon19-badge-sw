@@ -27,6 +27,7 @@
 #define LCD_HEIGHT          64
 #define LCD_PAGE_SIZE       8
 #define LCD_PAGES           LCD_HEIGHT/LCD_PAGE_SIZE
+#define LCD_I2C_CLOCK       400000
 
 typedef enum {
     BLACK,      ///< Draw 'off' pixels

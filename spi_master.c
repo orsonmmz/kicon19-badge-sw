@@ -36,12 +36,6 @@
 /* Chip select (NPCSx)*/
 #define SPI_CHIP_SEL 1
 
-/* Clock polarity */
-#define SPI_CLK_POLARITY 0
-
-/* Clock phase */
-#define SPI_CLK_PHASE 0
-
 /* Delay before SPCK */
 #define SPI_DLYBS 0x40
 

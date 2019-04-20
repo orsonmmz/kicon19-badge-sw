@@ -26,7 +26,7 @@ When connected to a PC, badge will be recognized as a serial port device. The se
 
 Convenient way to configure and acquire data from the badge is to use a command line tool [sigrok](https://sigrok.org/) or a GUI [PulseView](https://sigrok.org/wiki/PulseView) for logic analyzers. To use KiCon badge with PulseView, you have to select 'Openbench Logic Sniffer & SUMP compatibles (ols)', and then badge's serial port in the PulseView device configuration dialog.
 
-**IMPORTANT:** Sigrok and PulseView will let you choose sampling rates that are not supported by the badge, but in such case you will not receive any data from the badge. The supported sample rates are: **TODO**.
+**IMPORTANT:** Sigrok and PulseView will let you choose sampling rates that are not supported by the badge, the real sampling rate is shown on the display.
 
 Sample sigrok commands:
 * Detect the logic analyzer type

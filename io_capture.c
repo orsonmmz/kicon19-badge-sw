@@ -33,6 +33,7 @@ static int dummy_handler(int buf) { return 1; }
 
 static int (*finish_handler)(int) = dummy_handler;
 static int pio_pll_prescaler = 0;
+static clock_freq_t sample_freq;
 
 static ioc_buffer_t *ioc_buffers;
 static int ioc_buffers_cnt;
@@ -107,6 +108,12 @@ void ioc_set_clock(clock_freq_t freq)
     }
 
     pmc_switch_pck_to_pllbck(PMC_PCK_0, clk_pre);
+    sample_freq = freq;
+}
+
+
+clock_freq_t ioc_get_clock(void) {
+    return sample_freq;
 }
 
 

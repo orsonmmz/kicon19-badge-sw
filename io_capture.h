@@ -45,6 +45,11 @@ void ioc_init(void);
 void ioc_set_clock(clock_freq_t freq);
 
 /**
+ * Returns the configured sampling clock frequency.
+ */
+clock_freq_t ioc_get_clock(void);
+
+/**
  * Starts the acquisition.
  *
  * Buffers will be switched in a circular mode until one of them has 'last'

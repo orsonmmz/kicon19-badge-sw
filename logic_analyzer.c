@@ -53,7 +53,7 @@ static volatile uint32_t la_trig_offset = UINT_MAX;
 // Acquisition finished handler
 static int la_acq_finished(int buf_idx);
 
-static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
+static volatile enum la_state_t { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
 
 // Subbuffers used byt the I/O capture routines
 #define LA_IOC_BUFFERS_CNT  4
@@ -176,7 +176,7 @@ static void la_display_acq(uint32_t offset) {
 // Finds the closest available clock frequency
 // basing a 100 MHz prescaler (default OLS clock frequency)
 static clock_freq_t la_get_clock(int prescaler_100M) {
-    struct {
+    static const struct {
         clock_freq_t clock_freq;
         int max_prescaler;
     } freqs[] = {
@@ -346,11 +346,56 @@ static int la_acq_finished(int buf_idx) {
 }
 
 
+static void la_display_state(void) {
+    char samples_cnt[16];
+
+    while(SSD1306_isBusy());
+    SSD1306_clearBufferFull();
+    SSD1306_setString(5, 1, "Logic Analyzer (USB)", 20, WHITE);
+
+    /* display state */
+    switch (la_state) {
+        case IDLE: SSD1306_setString(0, 3, "state: idle", 11, WHITE); break;
+        case RUNNING: SSD1306_setString(0, 3, "state: armed", 12, WHITE); break;
+        case ACQUIRED: SSD1306_setString(0, 3, "state: acquired", 15, WHITE); break;
+
+    }
+
+    /* display sampling frequency */
+    switch (ioc_get_clock()) {
+        case F50MHZ:   SSD1306_setString(0, 4, "50 MHz", 6, WHITE); break;
+        case F40MHZ:   SSD1306_setString(0, 4, "40 MHz", 6, WHITE); break;
+        case F32MHZ:   SSD1306_setString(0, 4, "32 MHz", 6, WHITE); break;
+        case F25MHZ:   SSD1306_setString(0, 4, "25 MHz", 6, WHITE); break;
+        case F20MHZ:   SSD1306_setString(0, 4, "20 MHz", 6, WHITE); break;
+        case F16MHZ:   SSD1306_setString(0, 4, "16 MHz", 6, WHITE); break;
+        case F12_5MHZ: SSD1306_setString(0, 4, "12.5 MHz", 8, WHITE); break;
+        case F10MHZ:   SSD1306_setString(0, 4, "10 MHz", 6, WHITE); break;
+        case F8MHZ:    SSD1306_setString(0, 4, "8 MHz", 5, WHITE); break;
+        case F6MHZ:    SSD1306_setString(0, 4, "6 MHz", 5, WHITE); break;
+        case F5MHZ:    SSD1306_setString(0, 4, "5 MHz", 5, WHITE); break;
+        case F4MHZ:    SSD1306_setString(0, 4, "4 MHz", 5, WHITE); break;
+        case F3MHZ:    SSD1306_setString(0, 4, "3 MHz", 5, WHITE); break;
+        case F2MHZ:    SSD1306_setString(0, 4, "2 MHz", 5, WHITE); break;
+        case F1MHZ:    SSD1306_setString(0, 4, "1 MHz", 5, WHITE); break;
+        case F500KHZ:  SSD1306_setString(0, 4, "500 kHz", 7, WHITE); break;
+        case F250KHZ:  SSD1306_setString(0, 4, "250 kHz", 7, WHITE); break;
+        case F125KHZ:  SSD1306_setString(0, 4, "125 kHz", 7, WHITE); break;
+    }
+
+    /* display acquisition size */
+    sprintf(samples_cnt, "%lu samples", la_read_cnt);
+    SSD1306_setString(0, 5, samples_cnt, strlen(samples_cnt), WHITE);
+
+    SSD1306_drawBufferDMA();
+}
+
 
 void app_la_usb_func(void) {
     const uint8_t *resp;
     unsigned int resp_len;
     int processed;
+    int last_state = -1;
 
     la_trigger_mask = 0;
     la_trigger_val = 0;
@@ -359,13 +404,6 @@ void app_la_usb_func(void) {
     la_state = IDLE;
 
     cmd_set_mode(CMD_SUMP);
-
-    while(SSD1306_isBusy());
-    SSD1306_clearBufferFull();
-    SSD1306_setString(5, 3, "Logic Analyzer (USB)", 20, WHITE);
-    SSD1306_drawBufferDMA();
-
-    la_trig_offset = UINT_MAX;
 
     while(btn_state() != BUT_LEFT) {
         /* process commands */
@@ -389,6 +427,11 @@ void app_la_usb_func(void) {
             la_fix_channels(la_trig_offset, la_read_cnt);
             la_usb_send(la_trig_offset, la_read_cnt);
             la_state = IDLE;
+        }
+
+        if (last_state != la_state) {
+            la_display_state();
+            last_state = la_state;
         }
     }
 

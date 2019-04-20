@@ -60,6 +60,11 @@ clock_freq_t ioc_get_clock(void);
 void ioc_start(ioc_buffer_t *buffers, int count);
 
 /**
+ * Unconditionally stops the acquisition.
+ */
+void ioc_stop(void);
+
+/**
  * Returns 1 when acquisition is in progress, 0 otherwise.
  */
 int ioc_busy(void);

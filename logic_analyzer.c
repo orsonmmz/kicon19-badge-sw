@@ -241,7 +241,14 @@ int cmd_sump(const uint8_t* cmd, unsigned int len)
 
             case XON: break;
             case XOFF: break;
-            case RESET: break;
+
+            case RESET:
+                ioc_stop();
+                while(ioc_busy());
+                la_trig_offset = UINT_MAX;
+                la_state = IDLE;
+                break;
+
             default: return 0;   // unknown 1-byte command, perhaps incomplete
         }
 

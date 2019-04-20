@@ -41,6 +41,8 @@ static int ioc_buffers_cnt;
 static volatile int ioc_buffer_idx;
 static volatile int ioc_buffer_current;
 
+static volatile int ioc_stop_acq = 0;
+
 
 /* PIOA interrupt priority */
 #define PIO_IRQ_PRI                    (4)
@@ -163,6 +165,14 @@ void ioc_start(ioc_buffer_t *buffers, int count)
 }
 
 
+void ioc_stop(void)
+{
+    if (busy) {
+        ioc_stop_acq = 1;
+    }
+}
+
+
 int ioc_busy(void)
 {
     return busy;
@@ -178,9 +188,15 @@ void ioc_set_handler(int (*func)(int))
 void PIOA_Handler(void)
 {
     int cur_buf = ioc_buffer_current;
-    ioc_set_next_buffer();
+    int finished;
 
-    int finished = (*finish_handler)(cur_buf);
+    if (ioc_stop_acq) {
+        finished = 1;
+        ioc_stop_acq = 0;
+    } else {
+        ioc_set_next_buffer();
+        finished = (*finish_handler)(cur_buf);
+    }
 
     /* RXBUFF is set when there are no more buffers configured for acquisition */
     if (finished && (pio_capture_get_interrupt_status(PIOA) & PIO_PCISR_RXBUFF)) {

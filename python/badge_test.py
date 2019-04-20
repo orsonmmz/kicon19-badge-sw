@@ -21,12 +21,15 @@ from kicon_badge import KiconBadge
 import time
 
 badge = KiconBadge('/dev/ttyACM0')
-badge.reset()
+badge.init()
+
+# send data over UART
 uart_data = badge.uart_transfer(bytes('badge test', 'ascii'))
 
+# LCD functions demo
 badge.lcd_clear()
 
-# checker pattern
+# draw a checker pattern
 for y in range(12):
     for x in range(badge.LCD_WIDTH):
         badge.lcd_pixel(x, y, (x ^ y) & 0x02)
@@ -35,11 +38,14 @@ badge.lcd_text(1, 2, "hey, it is scripted")
 badge.lcd_text(4, 3, "with Python!")
 badge.lcd_refresh()
 
+# LEDs
 badge.led_set(badge.LED1, 1)
 badge.led_blink(badge.LED2, 2)
 
+# Buttons
 print("Buttons state: %x" % badge.buttons())
 
+# I2C transfers
 badge.i2c_set_clock_khz(200)
 # read the LCD status
 #badge.i2c_read(0x3c, 0x00, 1)
@@ -49,5 +55,6 @@ time.sleep(1)
 # restore the LCD colors
 badge.i2c_write(0x3c, 0x00, bytes([0xA6]))
 
+ # SPI transfers
 badge.spi_config(1000, 0)
 print(badge.spi_transfer(bytes([0x01, 0x02, 0x03])))

@@ -57,12 +57,13 @@ void ioc_start(ioc_buffer_t *buffers, int count);
 /**
  * Returns 1 when acquisition is in progress, 0 otherwise.
  */
-int  ioc_busy(void);
+int ioc_busy(void);
 
 /**
  * Sets a handler which will be called every time a buffer is acquired.
- * The handler will be called with the acquired buffer index.
+ * The handler will be called with the acquired buffer index. It should return
+ * 1 when the acquisition is finished.
  */
-void ioc_set_handler(void (*func)(int));
+void ioc_set_handler(int (*func)(int));
 
 #endif /* IO_CAPTURE_H */

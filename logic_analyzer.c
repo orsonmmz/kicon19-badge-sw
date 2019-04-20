@@ -51,7 +51,7 @@ static uint32_t la_delay_cnt = 0;
 static volatile uint32_t la_trig_offset = UINT_MAX;
 
 // Acquisition finished handler
-static void la_acq_finished(int buf_idx);
+static int la_acq_finished(int buf_idx);
 
 static volatile enum { IDLE, RUNNING, ACQUIRED } la_state = IDLE;
 
@@ -315,7 +315,7 @@ static void la_usb_send(uint32_t offset, uint32_t size) {
 }
 
 
-static void la_acq_finished(int buf_idx) {
+static int la_acq_finished(int buf_idx) {
     /* still waiting for the trigger */
     if (la_trig_offset == UINT_MAX) {
         uint8_t *buf_addr = la_ioc_buffers[buf_idx].addr;
@@ -335,12 +335,14 @@ static void la_acq_finished(int buf_idx) {
                 la_trig_offset += (buf_addr - la_buffer);
             }
         }
-    } else {
+    } else if (la_ioc_buffers[buf_idx].last) {
         /* was it the last acquisition? */
-        if (la_ioc_buffers[buf_idx].last) {
-            la_state = ACQUIRED;
-        }
+        la_state = ACQUIRED;
+        return 1;
     }
+
+    /* keep acquiring samples */
+    return 0;
 }
 
 

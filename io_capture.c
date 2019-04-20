@@ -29,9 +29,9 @@ static Pdc *p_pdc;
 
 static volatile int busy = 0;
 
-static void dummy_handler(int buf) {}
+static int dummy_handler(int buf) { return 1; }
 
-static void (*finish_handler)(int) = dummy_handler;
+static int (*finish_handler)(int) = dummy_handler;
 static int pio_pll_prescaler = 0;
 
 static ioc_buffer_t *ioc_buffers;
@@ -162,7 +162,7 @@ int ioc_busy(void)
 }
 
 
-void ioc_set_handler(void (*func)(int))
+void ioc_set_handler(int (*func)(int))
 {
     finish_handler = func;
 }
@@ -173,10 +173,10 @@ void PIOA_Handler(void)
     int cur_buf = ioc_buffer_current;
     ioc_set_next_buffer();
 
-    (*finish_handler)(cur_buf);
+    int finished = (*finish_handler)(cur_buf);
 
     /* RXBUFF is set when there are no more buffers configured for acquisition */
-    if ((pio_capture_get_interrupt_status(PIOA) & PIO_PCISR_RXBUFF)) {
+    if (finished && (pio_capture_get_interrupt_status(PIOA) & PIO_PCISR_RXBUFF)) {
         pmc_disable_pck(PMC_PCK_0);
         pdc_disable_transfer(p_pdc, PERIPH_PTCR_RXTDIS);
         pio_capture_disable_interrupt(PIOA, (PIO_PCIDR_ENDRX | PIO_PCIDR_RXBUFF));

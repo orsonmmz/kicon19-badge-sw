@@ -27,9 +27,6 @@
 #ifndef MENU_STRUCT_H
 #define MENU_STRUCT_H
 
-//#include "application.h"  // TODO
-//#include "settings/settings.h"
-
 /**
  * @brief Type of menu entry.
  */
